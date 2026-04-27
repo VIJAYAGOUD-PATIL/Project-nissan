@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Login Page</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f4f4;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+.card{background:#fff;padding:24px;border-radius:14px;box-shadow:0 10px 25px rgba(0,0,0,.08);width:380px}
+input,textarea,button{width:100%;padding:10px;margin:8px 0;border:1px solid #ccc;border-radius:8px;box-sizing:border-box}
+button{background:#111;color:#fff;border:none;cursor:pointer}
+button:hover{opacity:.9}
+small{color:#666}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>Login Automation</h2>
+<small>Paste target page HTML and provide selectors.</small>
+<input id="url" placeholder="Target URL https://example.com/login">
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<textarea id="htmlInput" rows="6" placeholder="Paste target page HTML here"></textarea>
+<input id="userSelector" placeholder="Username selector e.g. #username">
+<input id="passSelector" placeholder="Password selector e.g. #password">
+<input id="btnSelector" placeholder="Login button selector e.g. button[type=submit]">
+<button onclick="startLogin()">Login</button>
+</div>
+<script>
+function startLogin(){
+ const url=document.getElementById('url').value.trim();
+ const user=document.getElementById('username').value;
+ const pass=document.getElementById('password').value;
+ const userSel=document.getElementById('userSelector').value.trim();
+ const passSel=document.getElementById('passSelector').value.trim();
+ const btnSel=document.getElementById('btnSelector').value.trim();
+ if(!url){alert('Enter URL');return;}
+ const win=window.open(url,'_blank');
+ const timer=setInterval(()=>{
+   try{
+     if(!win || win.closed){clearInterval(timer);return;}
+     const d=win.document;
+     const u=d.querySelector(userSel);
+     const p=d.querySelector(passSel);
+     const b=d.querySelector(btnSel);
+     if(u&&p){u.value=user; p.value=pass;}
+     if(u&&p&&b){b.click(); clearInterval(timer);}   
+   }catch(e){}
+ },1000);
+}
+</script>
+</body>
+</html>
