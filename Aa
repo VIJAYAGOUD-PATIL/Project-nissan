@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Login Form</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f4f4f4;padding:40px}
+    .box{max-width:420px;margin:auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    input,button{width:100%;padding:10px;margin:8px 0}
+    button{cursor:pointer}
+  </style>
+</head>
+<body>
+<div class="box">
+  <h2>Login Redirect</h2>
+  <p>Enter target URL and credentials. This only works if the destination accepts direct POST requests with these field names.</p>
+  <input id="url" placeholder="https://example.com/login">
+  <input id="username" placeholder="Username">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="submitLogin()">Login</button>
+</div>
+<script>
+function submitLogin(){
+  const url=document.getElementById('url').value.trim();
+  const username=document.getElementById('username').value;
+  const password=document.getElementById('password').value;
+  if(!url){alert('Enter URL');return;}
+
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=url;
+
+  const u=document.createElement('input');
+  u.type='hidden';
+  u.name='username'; // change to site field name if needed
+  u.value=username;
+
+  const p=document.createElement('input');
+  p.type='hidden';
+  p.name='password'; // change to site field name if needed
+  p.value=password;
+
+  form.appendChild(u);
+  form.appendChild(p);
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
+</body>
+</html>
