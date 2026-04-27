@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      padding: 2.5rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 380px;
+    }
+    h2 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 1.75rem;
+      text-align: center;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #1a1a1a;
+      outline: none;
+      transition: border 0.2s;
+      margin-bottom: 1rem;
+    }
+    input:focus { border-color: #4f46e5; }
+    button {
+      width: 100%;
+      padding: 11px;
+      background: #4f46e5;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 0.25rem;
+    }
+    button:hover { background: #4338ca; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Login</h2>
+
+  <!-- Step 1: User fills this form -->
+  <label for="username">Username</label>
+  <input type="text" id="username" placeholder="Enter username" />
+
+  <label for="password">Password</label>
+  <input type="password" id="password" placeholder="Enter password" />
+
+  <button onclick="doLogin()">Login</button>
+</div>
+
+<script>
+  function doLogin() {
+    // ─── CONFIGURE HERE ───────────────────────────────────────────────
+    const TARGET_URL        = "https://YOUR-TARGET-URL.com/login"; // ← Paste your URL
+    const USERNAME_FIELD    = "username";  // ← name attribute of the username input on target page
+    const PASSWORD_FIELD    = "password";  // ← name attribute of the password input on target page
+    // ──────────────────────────────────────────────────────────────────
+
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (!username || !password) {
+      alert("Please enter both username and password.");
+      return;
+    }
+
+    // Build a hidden form and submit it to the target URL
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = TARGET_URL;
+
+    const u = document.createElement("input");
+    u.type  = "hidden";
+    u.name  = USERNAME_FIELD;
+    u.value = username;
+
+    const p = document.createElement("input");
+    p.type  = "hidden";
+    p.name  = PASSWORD_FIELD;
+    p.value = password;
+
+    form.appendChild(u);
+    form.appendChild(p);
+    document.body.appendChild(form);
+    form.submit();
+  }
+</script>
+
+</body>
+</html>
