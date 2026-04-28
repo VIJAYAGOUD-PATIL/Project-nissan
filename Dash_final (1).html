@@ -1,0 +1,2461 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="icon" href="lg.png">
+
+<title>LG Defect Tracker</title>
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+
+:root {
+
+  --brand: #a50034;
+
+  --brand-dark: #6b0022;
+
+  --brand-light: rgba(165,0,52,0.08);
+
+  --sidebar-bg: #0f1623;
+
+  --sidebar-w: 230px;
+
+  --navbar-h: 60px;
+
+  --surface: #ffffff;
+
+  --bg: #f0f2f5;
+
+  --border: #e8eaed;
+
+  --text-primary: #111827;
+
+  --text-secondary: #6b7280;
+
+  --text-muted: #9ca3af;
+
+  --green: #22c55e;
+
+  --orange: #f59e0b;
+
+  --red: #ef4444;
+
+  --radius: 12px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+
+  width: 100%; height: 100%; overflow: hidden;
+
+  font-family: 'DM Sans', sans-serif;
+
+  background: var(--sidebar-bg);
+
+  color: var(--text-primary);
+
+}
+
+.app-shell {
+
+  display: grid;
+
+  grid-template-rows: var(--navbar-h) 1fr;
+
+  grid-template-columns: var(--sidebar-w) 1fr;
+
+  grid-template-areas: "navbar navbar" "sidebar main";
+
+  width: 100vw; height: 100vh; overflow: hidden;
+
+}
+
+/* ═══ NAVBAR ═══ */
+
+.navbar {
+
+  grid-area: navbar;
+
+  background: var(--surface);
+
+  border-bottom: 1px solid var(--border);
+
+  display: flex; align-items: center; justify-content: space-between;
+
+  padding: 0 24px; z-index: 100; box-shadow: var(--shadow-sm);
+
+}
+
+.nav-left { display: flex; align-items: center; gap: 16px; }
+
+.hamburger { display: none; flex-direction: column; gap: 4.5px; cursor: pointer; padding: 6px; border-radius: 8px; transition: background var(--transition); background: none; border: none; }
+
+.hamburger:hover { background: var(--bg); }
+
+.hamburger span { display: block; width: 20px; height: 2px; background: var(--text-secondary); border-radius: 2px; transition: transform var(--transition), opacity var(--transition); }
+
+.hamburger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+
+.hamburger.open span:nth-child(2) { opacity: 0; }
+
+.hamburger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+.nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+
+.nav-brand img { width: 34px; height: 34px; }
+
+.nav-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+
+.nav-brand-text .brand-main { font-size: 15px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
+
+.nav-right { display: flex; align-items: center; gap: 14px; }
+
+.nav-badge { background: var(--brand-light); color: var(--brand); font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; }
+
+.nav-user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+.nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); display: flex; align-items: center; justify-content: center; color: white; font-size: 13px; font-weight: 700; }
+
+.nav-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+.nav-logout { font-size: 12px; color: var(--brand); text-decoration: none; font-weight: 600; padding: 5px 10px; border: 1.5px solid rgba(165,0,52,0.2); border-radius: 7px; transition: all var(--transition); }
+
+.nav-logout:hover { background: var(--brand); color: white; }
+
+/* ═══ SIDEBAR ═══ */
+
+.sidebar {
+
+  grid-area: sidebar; background: var(--sidebar-bg);
+
+  display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+
+  transition: transform var(--transition); z-index: 90;
+
+  border-right: 1px solid rgba(255,255,255,0.04);
+
+}
+
+.sidebar-section { padding: 20px 14px 8px; }
+
+.sidebar-section-label { font-size: 9.5px; font-weight: 700; color: rgba(255,255,255,0.25); letter-spacing: 1.2px; text-transform: uppercase; padding: 0 10px; margin-bottom: 4px; }
+
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin: 1px 0; border-radius: 9px; font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.5); cursor: pointer; transition: all var(--transition); border: 1px solid transparent; user-select: none; }
+
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+
+.nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+
+.nav-item.active { background: rgba(165,0,52,0.18); color: #fff; border-color: rgba(165,0,52,0.3); font-weight: 700; }
+
+.nav-item.active svg { opacity: 1; color: #ff6b8a; }
+
+.sidebar-footer { margin-top: auto; padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: rgba(255,255,255,0.2); text-align: center; }
+
+/* ═══ MAIN ═══ */
+
+.main-content { grid-area: main; background: var(--bg); overflow-y: auto; overflow-x: hidden; padding: 28px; height: calc(100vh - var(--navbar-h)); }
+
+.page { display: none; animation: pageIn 0.3s ease; }
+
+.page.active { display: block; }
+
+@keyframes pageIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+
+.page-title { font-size: 22px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
+
+.page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+/* ═══ STAT CARDS ═══ */
+
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-sm); transition: box-shadow var(--transition), transform var(--transition); }
+
+.stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+.stat-header { display: flex; justify-content: space-between; align-items: flex-start; }
+
+.stat-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+
+.stat-icon svg { width: 17px; height: 17px; }
+
+.stat-icon.blue    { background: #eff6ff; color: #3b82f6; }
+
+.stat-icon.red     { background: #fef2f2; color: var(--red); }
+
+.stat-icon.green   { background: #f0fdf4; color: var(--green); }
+
+.stat-icon.crimson { background: var(--brand-light); color: var(--brand); }
+
+.stat-value { font-size: 34px; font-weight: 800; color: var(--text-primary); line-height: 1; }
+
+.stat-value.red     { color: var(--red); }
+
+.stat-value.green   { color: var(--green); }
+
+.stat-value.crimson { color: var(--brand); }
+
+.stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+/* ═══ TABLE ═══ */
+
+.table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+
+.table-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+
+.table-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 580px; }
+
+thead tr { background: #fafafa; border-bottom: 1px solid var(--border); }
+
+th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap; }
+
+td { padding: 14px 16px; color: var(--text-secondary); border-bottom: 1px solid #f7f9fb; }
+
+tbody tr:last-child td { border-bottom: none; }
+
+tbody tr:hover { background: #fafbff; }
+
+.td-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+.td-title { font-weight: 500; color: var(--text-primary); }
+
+/* ═══ BADGES ═══ */
+
+.badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; display: inline-block; }
+
+.badge.open        { background: #fef2f2; color: var(--red); }
+
+.badge.closed      { background: #f0fdf4; color: #15803d; }
+
+.badge.critical    { background: var(--brand-light); color: var(--brand); }
+
+.badge.in-progress { background: #fffbeb; color: #d97706; }
+
+.badge.reopen      { background: #f3f4f6; color: #374151; }
+
+.badge.resolved    { background: #f0fdf4; color: #15803d; }
+
+.pri { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; display: inline-block; white-space: nowrap; }
+
+.pri.critical { background: var(--brand-light); color: var(--brand); }
+
+.pri.major    { background: #fff7ed; color: #c2410c; }
+
+.pri.minor    { background: #f0fdf4; color: #15803d; }
+
+/* ═══ FILTERS ═══ */
+
+.filters-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+
+.search-input { flex: 1; min-width: 180px; padding: 9px 14px 9px 36px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px; font-family: inherit; color: var(--text-primary); background: var(--surface); transition: border-color var(--transition); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 11px center; }
+
+.search-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-light); }
+
+.filter-select { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px; color: var(--text-secondary); background: var(--surface); font-family: inherit; cursor: pointer; }
+
+.filter-select:focus { outline: none; border-color: var(--brand); }
+
+/* ═══ REPORTS ═══ */
+
+.reports-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.report-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); }
+
+.report-card h3 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 7px; }
+
+.report-card h3::before { content:''; width: 3px; height: 14px; background: var(--brand); border-radius: 99px; display: inline-block; }
+
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; font-size: 12px; color: var(--text-secondary); }
+
+.bar-label { min-width: 70px; font-weight: 500; }
+
+.bar-track { flex: 1; height: 7px; background: #f0f2f5; border-radius: 99px; overflow: hidden; }
+
+.bar-fill { height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+.bar-val { min-width: 28px; text-align: right; font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+.resolution-stat { text-align: center; padding: 16px 0; }
+
+.resolution-stat .big-num { font-size: 56px; font-weight: 800; color: var(--green); line-height: 1; }
+
+.resolution-stat .big-label { font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 500; }
+
+.res-meta { display: flex; gap: 20px; justify-content: center; margin-top: 18px; font-size: 12px; color: var(--text-secondary); }
+
+.res-meta strong { color: var(--text-primary); font-weight: 700; }
+
+/* ═══ SETTINGS ═══ */
+
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+
+.settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); }
+
+.settings-card-header { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+
+.settings-card-header svg { width: 15px; height: 15px; color: var(--brand); }
+
+.settings-card-header.danger { color: var(--red); }
+
+.settings-card-header.danger svg { color: var(--red); }
+
+.setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f9fafb; gap: 14px; }
+
+.setting-row:last-of-type { border-bottom: none; }
+
+.setting-row.col { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+.setting-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+.setting-desc  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.setting-badge { background: var(--brand-light); color: var(--brand); font-size: 11px; font-weight: 700; padding: 4px 11px; border-radius: 99px; }
+
+.setting-input { padding: 8px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-primary); background: #fafafa; font-family: inherit; text-align: right; max-width: 200px; transition: border-color var(--transition); }
+
+.setting-input.full { width: 100%; max-width: 100%; text-align: left; }
+
+.setting-input:focus { outline: none; border-color: var(--brand); background: white; box-shadow: 0 0 0 3px var(--brand-light); }
+
+.setting-select { padding: 7px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-secondary); background: #fafafa; font-family: inherit; cursor: pointer; min-width: 110px; }
+
+.setting-select:focus { outline: none; border-color: var(--brand); }
+
+.toggle { width: 40px; height: 22px; background: #e5e7eb; border-radius: 99px; position: relative; cursor: pointer; transition: background var(--transition); flex-shrink: 0; }
+
+.toggle.on { background: var(--brand); }
+
+.toggle::after { content:''; position:absolute; width:16px; height:16px; background:white; border-radius:50%; top:3px; left:3px; transition:left var(--transition); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+.toggle.on::after { left:21px; }
+
+.save-btn { margin-top: 14px; padding: 9px 18px; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: white; font-size: 13px; font-weight: 700; border: none; border-radius: 9px; cursor: pointer; transition: opacity var(--transition), transform var(--transition); font-family: inherit; }
+
+.save-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+.outline-btn { padding: 8px 18px; background: transparent; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; font-family: inherit; transition: all var(--transition); white-space: nowrap; }
+
+.outline-btn:hover { border-color: #999; color: var(--text-primary); }
+
+.outline-btn.danger { border-color: #fca5a5; color: var(--red); }
+
+.outline-btn.danger:hover { background: #fef2f2; border-color: var(--red); }
+
+.danger-card { border-color: #fca5a5 !important; background: #fffafa; }
+
+.danger-card .settings-card-header { border-bottom-color: #fee2e2; }
+
+.strength-bar { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 4px; opacity: 0; transition: opacity var(--transition); }
+
+.strength-bar.show { opacity: 1; }
+
+.strength-track { flex: 1; height: 4px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+
+.strength-fill { height: 100%; border-radius: 99px; transition: width 0.3s, background 0.3s; }
+
+.strength-label { font-size: 11px; font-weight: 700; min-width: 42px; text-align: right; }
+
+/* ═══ CREATE DEFECT ═══ */
+
+.create-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+
+.flat-grid { display: grid; grid-template-columns: repeat(5, 1fr); }
+
+.fg { display: flex; flex-direction: column; padding: 10px 12px; border-right: 1px solid #f0f2f5; border-bottom: 1px solid #f0f2f5; background: white; min-width: 0; }
+
+.fg:nth-child(5n) { border-right: none; }
+
+.fg:nth-child(10n+6),.fg:nth-child(10n+7),.fg:nth-child(10n+8),.fg:nth-child(10n+9),.fg:nth-child(10n+10) { background: #fafbfc; }
+
+.fg.span3 { grid-column: span 3; }
+
+.fg label { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 5px; white-space: nowrap; }
+
+.req { color: var(--brand); }
+
+.fg input, .fg select { padding: 0; border: none; border-bottom: 1.5px solid #e5e7eb; border-radius: 0; font-size: 13px; color: var(--text-primary); background: transparent; font-family: inherit; width: 100%; height: 28px; transition: border-color var(--transition); min-width: 0; outline: none; }
+
+.fg input:focus, .fg select:focus { border-bottom-color: var(--brand); }
+
+.fg input::placeholder { color: #d1d5db; font-size: 12px; }
+
+/* ═══ RTE ═══ */
+
+.rte-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 8px 10px; background: #f5f7fa; border-bottom: 1px solid var(--border); user-select: none; }
+
+.rte-sep { width: 1px; height: 20px; background: #e5e7eb; margin: 0 4px; }
+
+.rte-btn { width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; color: #555; transition: all var(--transition); padding: 0; }
+
+.rte-btn svg { width: 13px; height: 13px; pointer-events: none; }
+
+.rte-btn:hover { background: #e5e7eb; color: var(--brand); }
+
+.rte-select { padding: 3px 7px; border: 1.5px solid #e5e7eb; border-radius: 5px; font-size: 12px; color: #333; background: white; cursor: pointer; font-family: inherit; height: 26px; }
+
+.rte-editor { min-height: 150px; max-height: 300px; overflow-y: auto; padding: 12px 14px; font-size: 14px; line-height: 1.7; color: var(--text-primary); background: white; outline: none; font-family: 'DM Sans', sans-serif; border: none; }
+
+.rte-editor:focus { box-shadow: inset 0 0 0 2px var(--brand-light); }
+
+.rte-placeholder { color: #c5cad5; }
+
+/* ═══ ATTACHMENTS ═══ */
+
+.attach-label { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px; }
+
+.attach-label svg { width: 13px; height: 13px; color: var(--brand); }
+
+.dropzone { border: 2px dashed #d1d5db; border-radius: 10px; padding: 22px 16px; text-align: center; cursor: pointer; transition: all var(--transition); background: #fafafa; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+.dropzone:hover, .dropzone.over { border-color: var(--brand); background: #fff5f7; }
+
+.dropzone svg { width: 26px; height: 26px; color: #d1d5db; }
+
+.dropzone p { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+.dropzone small { font-size: 11px; color: var(--text-muted); }
+
+.file-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+.file-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: #f8f9fb; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; animation: pageIn 0.2s ease; }
+
+.file-item svg { width: 15px; height: 15px; color: var(--brand); flex-shrink: 0; }
+
+.file-item .fn { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+
+.file-item .fs { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+.file-item .rm { width: 20px; height: 20px; border-radius: 50%; background: none; border: 1px solid #e5e7eb; cursor: pointer; color: var(--text-muted); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all var(--transition); }
+
+.file-item .rm:hover { background: #fef2f2; color: var(--red); border-color: #fca5a5; }
+
+/* ═══ FORM ACTIONS ═══ */
+
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 0 4px; flex-wrap: wrap; }
+
+.submit-btn { padding: 11px 24px; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: white; font-size: 14px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all var(--transition); font-family: inherit; }
+
+.submit-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(165,0,52,0.35); opacity: 0.92; }
+
+.submit-btn svg { width: 15px; height: 15px; }
+
+.cancel-btn { padding: 11px 20px; background: transparent; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all var(--transition); font-family: inherit; }
+
+.cancel-btn:hover { border-color: #9ca3af; color: var(--text-primary); }
+
+/* ═══ PROFESSIONAL TOAST ═══ */
+
+.toast-container {
+
+  position: fixed; top: 24px; right: 24px;
+
+  z-index: 9999; display: flex; flex-direction: column;
+
+  gap: 10px; pointer-events: none;
+
+}
+
+.toast-item {
+
+  display: flex; align-items: flex-start; gap: 13px;
+
+  background: #ffffff; border-radius: 14px;
+
+  padding: 15px 18px; min-width: 300px; max-width: 380px;
+
+  box-shadow: 0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.06);
+
+  border-left: 4px solid #ccc; pointer-events: all;
+
+  position: relative; overflow: hidden;
+
+  animation: toastSlideIn 0.38s cubic-bezier(0.22,1,0.36,1) forwards;
+
+}
+
+.toast-item.toast-success { border-left-color: #16a34a; }
+
+.toast-item.toast-error   { border-left-color: #e53935; }
+
+.toast-item.toast-info    { border-left-color: #1d6fb5; }
+
+.toast-item.toast-warning { border-left-color: #d97706; }
+
+.toast-icon-wrap {
+
+  width: 36px; height: 36px; border-radius: 50%;
+
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+
+}
+
+.toast-success .toast-icon-wrap { background: #dcfce7; }
+
+.toast-error   .toast-icon-wrap { background: #fde8e8; }
+
+.toast-info    .toast-icon-wrap { background: #dbeafe; }
+
+.toast-warning .toast-icon-wrap { background: #fef3c7; }
+
+.toast-icon-wrap svg { width: 17px; height: 17px; }
+
+.toast-success .toast-icon-wrap svg { stroke: #16a34a; }
+
+.toast-error   .toast-icon-wrap svg { stroke: #e53935; }
+
+.toast-info    .toast-icon-wrap svg { stroke: #1d6fb5; }
+
+.toast-warning .toast-icon-wrap svg { stroke: #d97706; }
+
+.toast-body { flex: 1; min-width: 0; }
+
+.toast-title { font-size: 13px; font-weight: 700; color: #111; margin-bottom: 2px; }
+
+.toast-msg   { font-size: 12px; color: #666; line-height: 1.5; }
+
+.toast-close-btn {
+
+  background: none; border: none; cursor: pointer;
+
+  color: #bbb; padding: 0; flex-shrink: 0;
+
+  width: 20px; height: 20px; display: flex;
+
+  align-items: center; justify-content: center;
+
+  border-radius: 50%; transition: all 0.15s;
+
+}
+
+.toast-close-btn:hover { background: #f3f4f6; color: #555; }
+
+.toast-close-btn svg { width: 13px; height: 13px; }
+
+.toast-progress-bar {
+
+  position: absolute; bottom: 0; left: 0; height: 3px;
+
+  border-radius: 0 2px 2px 0; animation: toastProgress 3.5s linear forwards;
+
+}
+
+.toast-success .toast-progress-bar { background: #16a34a; }
+
+.toast-error   .toast-progress-bar { background: #e53935; }
+
+.toast-info    .toast-progress-bar { background: #1d6fb5; }
+
+.toast-warning .toast-progress-bar { background: #d97706; }
+
+.toast-item.hiding {
+
+  animation: toastSlideOut 0.28s ease forwards;
+
+}
+
+@keyframes toastSlideIn {
+
+  from { opacity: 0; transform: translateX(70px) scale(0.94); }
+
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+
+}
+
+@keyframes toastSlideOut {
+
+  from { opacity: 1; transform: translateX(0) scale(1); max-height: 120px; margin-bottom: 0; }
+
+  to   { opacity: 0; transform: translateX(70px) scale(0.94); max-height: 0; margin-bottom: -10px; padding: 0; }
+
+}
+
+@keyframes toastProgress {
+
+  from { width: 100%; }
+
+  to   { width: 0%; }
+
+}
+
+/* ═══ OVERLAY (mobile) ═══ */
+
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 89; backdrop-filter: blur(2px); }
+
+.sidebar-overlay.show { display: block; }
+
+/* ═══ RESPONSIVE ═══ */
+
+@media (min-width: 1400px) { :root { --sidebar-w: 250px; } .main-content { padding: 32px 36px; } }
+
+@media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .flat-grid { grid-template-columns: repeat(4, 1fr); } .fg:nth-child(4n) { border-right: none; } .fg:nth-child(5n) { border-right: 1px solid #f0f2f5; } }
+
+@media (max-width: 900px)  { :root { --sidebar-w: 220px; } .reports-grid { grid-template-columns: 1fr; } .settings-grid { grid-template-columns: 1fr; } .flat-grid { grid-template-columns: repeat(3, 1fr); } .fg:nth-child(3n) { border-right: none; } .fg:nth-child(5n) { border-right: 1px solid #f0f2f5; } .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+@media (max-width: 680px)  {
+
+  .app-shell { grid-template-columns: 1fr; grid-template-areas: "navbar" "main"; }
+
+  .sidebar { position: fixed; top: var(--navbar-h); left: 0; width: 240px; height: calc(100vh - var(--navbar-h)); transform: translateX(-100%); z-index: 90; box-shadow: var(--shadow-lg); }
+
+  .sidebar.open { transform: translateX(0); }
+
+  .hamburger { display: flex; }
+
+  .main-content { height: calc(100vh - var(--navbar-h)); padding: 16px; }
+
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  .stat-value { font-size: 28px; }
+
+  .flat-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .fg:nth-child(2n) { border-right: none; }
+
+  .reports-grid { grid-template-columns: 1fr; }
+
+  .settings-grid { grid-template-columns: 1fr; }
+
+  .nav-name { display: none; } .nav-badge { display: none; }
+
+  .form-actions { flex-direction: column; }
+
+  .submit-btn, .cancel-btn { width: 100%; justify-content: center; }
+
+  .page-title { font-size: 18px; }
+
+  .toast-container { top: 12px; right: 12px; left: 12px; }
+
+  .toast-item { min-width: unset; width: 100%; }
+
+}
+
+@media (max-width: 380px) { .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .flat-grid { grid-template-columns: 1fr 1fr; } .main-content { padding: 12px; } .navbar { padding: 0 14px; } }
+
+</style>
+
+</head>
+
+<body>
+
+<div class="app-shell">
+
+  <!-- ═══ NAVBAR ═══ -->
+
+  <nav class="navbar">
+
+    <div class="nav-left">
+
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Toggle menu">
+
+        <span></span><span></span><span></span>
+
+      </button>
+
+      <a class="nav-brand" href="#">
+
+        <img src="https://upload.wikimedia.org/wikipedia/commons/2/20/LG_symbol.svg" alt="LG">
+
+        <div class="nav-brand-text">
+
+          <span class="brand-main">LG Defect Tracker</span>
+
+        </div>
+
+      </a>
+
+    </div>
+
+    <div class="nav-right">
+
+      <span class="nav-badge">Admin</span>
+
+      <div class="nav-user-info">
+
+        <div class="nav-avatar">VK</div>
+
+        <span class="nav-name">Vijay Kumar</span>
+
+      </div>
+
+      <a href="index.html" class="nav-logout">Logout</a>
+
+    </div>
+
+  </nav>
+
+  <!-- ═══ SIDEBAR ═══ -->
+
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-section">
+
+      <div class="sidebar-section-label">Main</div>
+
+      <div class="nav-item active" onclick="showPage('dashboard',this)">
+
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+
+        Dashboard
+
+      </div>
+
+      <div class="nav-item" onclick="showPage('create',this)">
+
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+
+        Create Defect
+
+      </div>
+
+      <div class="nav-item" onclick="showPage('view',this)">
+
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+
+        View Defects
+
+      </div>
+
+    </div>
+
+    <div class="sidebar-section">
+
+      <div class="sidebar-section-label">Analytics</div>
+
+      <div class="nav-item" onclick="showPage('reports',this)">
+
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+
+        Reports
+
+      </div>
+
+    </div>
+
+    <div class="sidebar-section">
+
+      <div class="sidebar-section-label">Account</div>
+
+      <div class="nav-item" onclick="showPage('settings',this)">
+
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+
+        Settings
+
+      </div>
+
+    </div>
+
+    <div class="sidebar-footer">LG © 2026</div>
+
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+
+  <main class="main-content">
+
+    <!-- ─── DASHBOARD ─── -->
+
+    <div class="page active" id="page-dashboard">
+
+      <div class="page-header">
+
+        <div>
+
+          <div class="page-title">Dashboard</div>
+
+          <div class="page-subtitle" id="dashWelcome">Overview of all defects — updated live</div>
+
+        </div>
+
+        <button onclick="loadDefects(true)" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;font-family:inherit;" title="Refresh from MongoDB">
+
+          <svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+
+          Refresh
+
+        </button>
+
+      </div>
+
+      <div class="stats-grid">
+
+        <div class="stat-card">
+
+          <div class="stat-header"><div><div class="stat-label">Total Defects</div></div><div class="stat-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div></div>
+
+          <div class="stat-value" id="statTotal">120</div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-header"><div><div class="stat-label">Open Defects</div></div><div class="stat-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div></div>
+
+          <div class="stat-value red" id="statOpen">35</div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-header"><div><div class="stat-label">Closed Defects</div></div><div class="stat-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div></div>
+
+          <div class="stat-value green" id="statClosed">70</div>
+
+        </div>
+
+        <div class="stat-card">
+
+          <div class="stat-header"><div><div class="stat-label">Critical Defects</div></div><div class="stat-icon crimson"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div></div>
+
+          <div class="stat-value crimson" id="statCritical">15</div>
+
+        </div>
+
+      </div>
+
+      <div class="table-card">
+
+        <div class="table-toolbar"><span class="table-title">Recent Defects</span></div>
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead><tr><th>ID</th><th>Title</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Date</th></tr></thead>
+
+            <tbody id="dashTableBody">
+
+              <tr id="dashEmptyRow"><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px;font-size:13px;">Loading defects…</td></tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ─── CREATE DEFECT ─── -->
+
+    <div class="page" id="page-create">
+
+      <div class="page-header">
+
+        <div><div class="page-title">Create Defect</div><div class="page-subtitle">Fill in the details below to log a new defect</div></div>
+
+      </div>
+
+      <form id="createForm" onsubmit="submitDefect(event)">
+
+        <div class="create-card">
+
+          <div class="flat-grid">
+
+            <div class="fg span3"><label>Title <span class="req">*</span></label><input type="text" id="defTitle" placeholder="Brief description of the defect"></div>
+
+            <div class="fg"><label>Tracker</label><input type="text" id="defTracker" placeholder="Bug / Feature / Task"></div>
+
+            <div class="fg"><label>Parent</label><input type="text" id="defParent" placeholder="e.g. DEF-100"></div>
+
+            <div class="fg"><label>Status <span class="req">*</span></label><select id="defStatus"><option value="">Select</option><option>Open</option><option>In Progress</option><option>Reopen</option><option>Resolved</option><option>Closed</option><option>Critical</option></select></div>
+
+            <div class="fg"><label>Priority <span class="req">*</span></label><select id="defPriority"><option value="">Select</option><option>Critical</option><option>Major</option><option>Minor</option></select></div>
+
+            <div class="fg"><label>Test Case ID</label><input type="text" id="defTcid" placeholder="TC-001"></div>
+
+            <div class="fg"><label>Assigned To <span class="req">*</span></label><input type="text" id="defAssigned" placeholder="Name"></div>
+
+            <div class="fg"><label>Date <span class="req">*</span></label><input type="date" id="defDate"></div>
+
+            <div class="fg"><label>Function</label><input type="text" id="defFunction" placeholder=""></div>
+
+            <div class="fg"><label>Bug Symptom</label><input type="text" id="defBugSymptom" placeholder=""></div>
+
+            <div class="fg"><label>Submitted By</label><input type="text" id="defSubmittedBy" placeholder=""></div>
+
+            <div class="fg"><label>Modified By</label><input type="text" id="defModifiedBy" placeholder=""></div>
+
+            <div class="fg"><label>Watcher</label><input type="text" id="defWatcher" placeholder=""></div>
+
+            <div class="fg"><label>Affected Version</label><input type="text" id="defAffectedVersion" placeholder=""></div>
+
+            <div class="fg"><label>Test Environment</label><input type="text" id="defTestEnvironment" placeholder=""></div>
+
+            <div class="fg"><label>HW Version</label><input type="text" id="defHwVersion" placeholder=""></div>
+
+            <div class="fg"><label>Resolution</label><input type="text" id="defResolution" placeholder=""></div>
+
+            <div class="fg"><label>Reproducibility</label><input type="text" id="defReproducibility" placeholder=""></div>
+
+            <div class="fg"><label>Occurrence Rate</label><input type="text" id="defOccurrenceRate" placeholder=""></div>
+
+            <div class="fg"><label>Severity</label><input type="text" id="defSeverity" placeholder=""></div>
+
+            <div class="fg"><label>Root Cause Type</label><input type="text" id="defRootCauseType" placeholder=""></div>
+
+            <div class="fg"><label>Test Location</label><input type="text" id="defTestLocation" placeholder=""></div>
+
+            <div class="fg"><label>NPI</label><input type="text" id="defNpi" placeholder=""></div>
+
+            <div class="fg"><label>NPI Event Order</label><input type="text" id="defNpiEventOrder" placeholder=""></div>
+
+            <div class="fg"><label>Root Cause</label><input type="text" id="defRootCause" placeholder=""></div>
+
+            <div class="fg"><label>Countermeasure</label><input type="number" id="defCountermeasure" placeholder="0" min="0"></div>
+
+            <div class="fg"><label>Commit ID</label><input type="text" id="defCommitId" placeholder=""></div>
+
+            <div class="fg"><label>Fixed Version</label><input type="text" id="defFixedVersion" placeholder=""></div>
+
+            <div class="fg"><label>Variant</label><input type="text" id="defVariant" placeholder=""></div>
+
+            <div class="fg"><label>Variant Vehicle Info</label><input type="text" id="defVariantVehicleInfo" placeholder=""></div>
+
+            <div class="fg"><label>Confirmation Version</label><input type="text" id="defConfirmationVersion" placeholder=""></div>
+
+            <div class="fg"><label>Holding Reason</label><input type="text" id="defHoldingReason" placeholder=""></div>
+
+            <div class="fg"><label>Resolved Date</label><input type="date" id="defResolvedDate"></div>
+
+            <div class="fg"><label>Test Field</label><input type="text" id="defTestField" placeholder=""></div>
+
+            <div class="fg"><label>Bug Owner</label><input type="text" id="defBugOwner" placeholder=""></div>
+
+            <div class="fg"><label>Open To OEM</label><input type="text" id="defOpenToOem" placeholder=""></div>
+
+            <div class="fg"><label>Against Who</label><input type="text" id="defAgainstWho" placeholder=""></div>
+
+            <div class="fg"><label>Document Issue</label><input type="text" id="defDocumentIssue" placeholder=""></div>
+
+            <div class="fg"><label>REQ Based</label><input type="text" id="defReqBased" placeholder=""></div>
+
+            <div class="fg"><label>Test Strategy</label><input type="text" id="defTestStrategy" placeholder=""></div>
+
+            <div class="fg"><label>VLM Key</label><input type="text" id="defVlmKey" placeholder=""></div>
+
+            <div class="fg"><label>VLM Status</label><input type="text" id="defVlmStatus" placeholder=""></div>
+
+            <div class="fg"><label>VLM Assignee</label><input type="text" id="defVlmAssignee" placeholder=""></div>
+
+            <div class="fg"><label>VLM Reporter</label><input type="text" id="defVlmReporter" placeholder=""></div>
+
+            <div class="fg"><label>OEM Key</label><input type="text" id="defOemKey" placeholder=""></div>
+
+            <div class="fg"><label>OEM Status</label><input type="text" id="defOemStatus" placeholder=""></div>
+
+            <div class="fg"><label>OEM Assignee</label><input type="text" id="defOemAssignee" placeholder=""></div>
+
+            <div class="fg"><label>OEM Reporter</label><input type="text" id="defOemReporter" placeholder=""></div>
+
+            <div class="fg"><label>Last Send Time</label><input type="text" id="defLastSendTime" placeholder=""></div>
+
+            <div class="fg"><label>Last Send Log</label><input type="text" id="defLastSendLog" placeholder=""></div>
+
+            <div class="fg"><label>Due Date</label><input type="date" id="defDueDate"></div>
+
+            <div class="fg"><label>Reopen Count</label><input type="text" id="defReopenCount" placeholder=""></div>
+
+            <div class="fg"><label>Labels</label><input type="text" id="defLabels" placeholder=""></div>
+
+          </div>
+
+        </div>
+
+        <div class="create-card" style="margin-top:14px;padding:0;overflow:hidden;">
+
+          <div style="border:none;">
+
+            <div class="rte-toolbar" onmousedown="event.preventDefault()">
+
+              <select class="rte-select" id="fontFamily" onchange="applyFont()"><option value="DM Sans">DM Sans</option><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option></select>
+
+              <select class="rte-select" id="fontSize" onchange="applySize()" style="width:54px;margin-left:4px"><option value="1">8</option><option value="2">10</option><option value="3" selected>12</option><option value="4">14</option><option value="5">18</option><option value="6">24</option><option value="7">36</option></select>
+
+              <div class="rte-sep"></div>
+
+              <button type="button" class="rte-btn" title="Bold" onclick="fmt('bold')"><b>B</b></button>
+
+              <button type="button" class="rte-btn" title="Italic" onclick="fmt('italic')"><i>I</i></button>
+
+              <button type="button" class="rte-btn" title="Underline" onclick="fmt('underline')"><u>U</u></button>
+
+              <button type="button" class="rte-btn" title="Strikethrough" onclick="fmt('strikeThrough')"><s>S</s></button>
+
+              <div class="rte-sep"></div>
+
+              <button type="button" class="rte-btn" onclick="fmt('justifyLeft')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
+
+              <button type="button" class="rte-btn" onclick="fmt('justifyCenter')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+
+              <button type="button" class="rte-btn" onclick="fmt('justifyRight')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
+
+              <div class="rte-sep"></div>
+
+              <button type="button" class="rte-btn" onclick="fmt('insertUnorderedList')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></button>
+
+              <button type="button" class="rte-btn" onclick="fmt('insertOrderedList')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
+
+              <div class="rte-sep"></div>
+
+              <button type="button" class="rte-btn" onclick="insertRteLink()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+
+              <button type="button" class="rte-btn" onclick="fmt('removeFormat')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12l-4 7h4l-9 11 2-7H6z"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+
+              <div class="rte-sep"></div>
+
+              <label title="Text color" style="cursor:pointer;display:flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:#333;padding:3px 5px;border-radius:4px;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background=''">A<input type="color" value="#000000" onchange="fmt('foreColor',this.value)" style="width:18px;height:18px;border:none;padding:0;cursor:pointer;background:none;"></label>
+
+              <label title="Highlight" style="cursor:pointer;display:flex;align-items:center;gap:3px;padding:3px 5px;border-radius:4px;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background=''"><svg viewBox="0 0 24 24" width="13" height="13" fill="#fbbf24" stroke="#d1d5db" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg><input type="color" value="#ffff00" onchange="fmt('hiliteColor',this.value)" style="width:18px;height:18px;border:none;padding:0;cursor:pointer;background:none;"></label>
+
+            </div>
+
+            <div class="rte-editor" id="rteEditor" contenteditable="true" spellcheck="true"><p class="rte-placeholder">Enter description, steps to reproduce, expected vs actual results…</p></div>
+
+          </div>
+
+          <div style="padding:16px 20px 20px;">
+
+            <div class="attach-label">
+
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+
+              Attachments
+
+            </div>
+
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+
+              <p>Click to upload or drag &amp; drop</p>
+
+              <small>PNG, JPG, PDF, MP4, ZIP, LOG — max 50MB each</small>
+
+              <input type="file" id="fileInput" multiple accept="image/*,.pdf,.zip,.mp4,.txt,.log,.xlsx,.docx" style="display:none" onchange="addFiles(this.files)">
+
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+
+          </div>
+
+        </div>
+
+        <div class="form-actions">
+
+          <button type="button" class="cancel-btn" onclick="showPage('dashboard',document.querySelectorAll('.nav-item')[0])">Cancel</button>
+
+          <button type="submit" class="submit-btn">
+
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+
+            Submit Defect
+
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+    <!-- ─── VIEW DEFECTS ─── -->
+
+    <div class="page" id="page-view">
+
+      <div class="page-header">
+
+        <div><div class="page-title">View Defects</div><div class="page-subtitle">Browse, filter and manage all defect records</div></div>
+
+      </div>
+
+      <div class="filters-row">
+
+        <input class="search-input" type="text" placeholder="Search by title…" oninput="filterTable()" id="searchInput">
+
+        <select class="filter-select" id="filterPriority" onchange="filterTable()"><option value="">All Priorities</option><option>Critical</option><option>Major</option><option>Minor</option></select>
+
+        <select class="filter-select" id="filterStatus" onchange="filterTable()"><option value="">All Statuses</option><option>Open</option><option>In Progress</option><option>Closed</option><option>Critical</option><option>Reopen</option><option>Resolved</option></select>
+
+      </div>
+
+      <div class="table-card">
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead><tr><th>ID</th><th>Title</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>Date</th></tr></thead>
+
+            <tbody id="viewTableBody">
+
+              <tr id="viewEmptyRow"><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px;font-size:13px;">No defects yet.</td></tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ─── REPORTS ─── -->
+
+    <div class="page" id="page-reports">
+
+      <div class="page-header">
+
+        <div><div class="page-title">Reports</div><div class="page-subtitle">Analytics and defect distribution metrics</div></div>
+
+      </div>
+
+      <div class="reports-grid">
+
+        <!-- Defects by Priority -->
+
+        <div class="report-card">
+
+          <h3>Defects by Priority</h3>
+
+          <div class="bar-row"><span class="bar-label">Critical</span><div class="bar-track"><div class="bar-fill" id="rPriCriticalFill" style="width:0%;background:#a50034"></div></div><span class="bar-val" id="rPriCriticalVal">0</span></div>
+
+          <div class="bar-row"><span class="bar-label">Major</span>   <div class="bar-track"><div class="bar-fill" id="rPriMajorFill"    style="width:0%;background:#f59e0b"></div></div><span class="bar-val" id="rPriMajorVal">0</span></div>
+
+          <div class="bar-row"><span class="bar-label">Minor</span>   <div class="bar-track"><div class="bar-fill" id="rPriMinorFill"    style="width:0%;background:#22c55e"></div></div><span class="bar-val" id="rPriMinorVal">0</span></div>
+
+        </div>
+
+        <!-- Defects by Status -->
+
+        <div class="report-card">
+
+          <h3>Defects by Status</h3>
+
+          <div class="bar-row"><span class="bar-label">Open</span>       <div class="bar-track"><div class="bar-fill" id="rStOpenFill"       style="width:0%;background:#ef4444"></div></div><span class="bar-val" id="rStOpenVal">0</span></div>
+
+          <div class="bar-row"><span class="bar-label">Closed</span>     <div class="bar-track"><div class="bar-fill" id="rStClosedFill"     style="width:0%;background:#22c55e"></div></div><span class="bar-val" id="rStClosedVal">0</span></div>
+
+          <div class="bar-row"><span class="bar-label">In Progress</span><div class="bar-track"><div class="bar-fill" id="rStInProgressFill" style="width:0%;background:#f59e0b"></div></div><span class="bar-val" id="rStInProgressVal">0</span></div>
+
+          <div class="bar-row"><span class="bar-label">Critical</span>   <div class="bar-track"><div class="bar-fill" id="rStCriticalFill"   style="width:0%;background:#a50034"></div></div><span class="bar-val" id="rStCriticalVal">0</span></div>
+
+          <div class="bar-row"><span class="bar-label">Resolved</span>   <div class="bar-track"><div class="bar-fill" id="rStResolvedFill"   style="width:0%;background:#6366f1"></div></div><span class="bar-val" id="rStResolvedVal">0</span></div>
+
+          <div class="bar-row"><span class="bar-label">Reopen</span>     <div class="bar-track"><div class="bar-fill" id="rStReopenFill"     style="width:0%;background:#f97316"></div></div><span class="bar-val" id="rStReopenVal">0</span></div>
+
+        </div>
+
+        <!-- Defects by Assignee -->
+
+        <div class="report-card">
+
+          <h3>Defects by Assignee</h3>
+
+          <div id="rAssigneeRows"></div>
+
+        </div>
+
+        <!-- Resolution Rate -->
+
+        <div class="report-card">
+
+          <h3>Resolution Rate</h3>
+
+          <div class="resolution-stat">
+
+            <div class="big-num" id="rResolutionPct">0%</div>
+
+            <div class="big-label">Overall resolution rate</div>
+
+            <div class="res-meta">
+
+              <span>Total: <strong id="rResTotal">0</strong></span>
+
+              <span>Resolved/Closed: <strong id="rResDone">0</strong></span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ─── SETTINGS ─── -->
+
+    <div class="page" id="page-settings">
+
+      <div class="page-header">
+
+        <div><div class="page-title">Settings</div><div class="page-subtitle">Manage your profile, preferences and account</div></div>
+
+      </div>
+
+      <div class="settings-grid">
+
+        <div class="settings-card">
+
+          <div class="settings-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
+
+          <div class="setting-row"><div><div class="setting-label">Full name</div><div class="setting-desc">Your display name across the app</div></div><input id="settingFullName" class="setting-input" type="text" value="Vijay Kumar"></div>
+
+          <div class="setting-row"><div><div class="setting-label">Email address</div><div class="setting-desc">Used for login and notifications</div></div><input id="settingEmail" class="setting-input" type="email" value="lg@lg.com"></div>
+
+          <div class="setting-row"><div><div class="setting-label">Phone number</div><div class="setting-desc">For SMS alerts</div></div><input id="settingPhone" class="setting-input" type="tel" placeholder="+91 98765 43210"></div>
+
+          <div class="setting-row"><div><div class="setting-label">Role</div><div class="setting-desc">Your permission level</div></div><span class="setting-badge">Admin</span></div>
+
+          <button class="save-btn" onclick="saveProfile()">Save changes</button>
+
+        </div>
+
+        <div class="settings-card">
+
+          <div class="settings-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Change Password</div>
+
+          <div class="setting-row col"><span class="setting-label">Current password</span><input class="setting-input full" type="password" placeholder="Enter current password"></div>
+
+          <div class="setting-row col"><span class="setting-label">New password</span><input class="setting-input full" type="password" placeholder="Min. 8 characters" id="newPass" oninput="checkPassStrength()"><div class="strength-bar" id="settingStrengthBar"><div class="strength-track"><div class="strength-fill" id="settingStrengthFill"></div></div><span class="strength-label" id="settingStrengthLabel"></span></div></div>
+
+          <div class="setting-row col"><span class="setting-label">Confirm new password</span><input class="setting-input full" type="password" placeholder="Re-enter new password"></div>
+
+          <button class="save-btn" onclick="showToast('success','Password changed','Your password has been updated successfully.')">Update password</button>
+
+        </div>
+
+        <div class="settings-card">
+
+          <div class="settings-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Notifications</div>
+
+          <div class="setting-row"><div><div class="setting-label">Email notifications</div><div class="setting-desc">Receive updates via email</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+
+          <div class="setting-row"><div><div class="setting-label">Defect assigned to me</div><div class="setting-desc">Notify when a defect is assigned</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+
+          <div class="setting-row"><div><div class="setting-label">Status change alerts</div><div class="setting-desc">When a defect status changes</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+
+        </div>
+
+        <div class="settings-card">
+
+          <div class="settings-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Defect Defaults</div>
+
+          <div class="setting-row"><div><div class="setting-label">Default priority</div><div class="setting-desc">Pre-select when creating a defect</div></div><select class="setting-select"><option>Critical</option><option selected>Major</option><option>Minor</option></select></div>
+
+          <div class="setting-row"><div><div class="setting-label">Default assignee</div><div class="setting-desc">Auto-fill assignee field</div></div><select class="setting-select"><option>Vijay</option><option>Rahul</option><option>Anita</option><option>Priya</option></select></div>
+
+          <div class="setting-row"><div><div class="setting-label">Auto-assign to me</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+
+          <div class="setting-row"><div><div class="setting-label">Require description</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+
+        </div>
+
+        <div class="settings-card">
+
+          <div class="settings-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>Appearance</div>
+
+          <div class="setting-row"><div><div class="setting-label">Language</div></div><select class="setting-select"><option selected>English</option><option>Hindi</option><option>Tamil</option><option>Telugu</option></select></div>
+
+          <div class="setting-row"><div><div class="setting-label">Date format</div></div><select class="setting-select"><option selected>DD MMM YYYY</option><option>MM/DD/YYYY</option><option>YYYY-MM-DD</option></select></div>
+
+          <div class="setting-row"><div><div class="setting-label">Items per page</div></div><select class="setting-select"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></div>
+
+        </div>
+
+        <div class="settings-card danger-card">
+
+          <div class="settings-card-header danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Danger Zone</div>
+
+          <div class="setting-row"><div><div class="setting-label">Export all defects</div><div class="setting-desc">Download as CSV file</div></div><button class="outline-btn" onclick="exportCSV()">Export CSV</button></div>
+
+          <div class="setting-row"><div><div class="setting-label">Delete account</div><div class="setting-desc">This action cannot be undone</div></div><button class="outline-btn danger" onclick="confirmDelete()">Delete</button></div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+</div>
+
+<!-- Mobile overlay -->
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- ═══ PROFESSIONAL TOAST CONTAINER ═══ -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+
+// In-memory defect store (localStorage)
+
+var DEFECTS_KEY = 'lg_defects';
+
+function getDefects() {
+
+  try { return JSON.parse(localStorage.getItem(DEFECTS_KEY)) || []; } catch(e) { return []; }
+
+}
+
+function saveDefects(arr) {
+
+  localStorage.setItem(DEFECTS_KEY, JSON.stringify(arr));
+
+}
+
+// ═══ USER DATA BOOTSTRAP ═══
+
+(function() {
+
+  var raw = localStorage.getItem('user');
+
+  if (!raw) return;
+
+  var u; try { u = JSON.parse(raw); } catch(e) { return; }
+
+  var firstName = u.firstName || '', lastName = u.lastName || '';
+
+  var fullName  = (firstName + ' ' + lastName).trim() || 'User';
+
+  var initials  = ((firstName[0]||'') + (lastName[0]||'')).toUpperCase() || 'U';
+
+  var el; 
+
+  if ((el = document.querySelector('.nav-avatar'))) el.textContent = initials;
+
+  if ((el = document.querySelector('.nav-name')))   el.textContent = fullName;
+
+  if ((el = document.getElementById('dashWelcome'))) el.textContent = 'Welcome back, ' + firstName + '! Here\'s your defect overview.';
+
+  if ((el = document.getElementById('settingFullName'))) el.value = fullName;
+
+  if ((el = document.getElementById('settingEmail')))    el.value = u.email || '';
+
+  if ((el = document.getElementById('settingPhone')) && u.phone) el.value = u.phone;
+
+})();
+
+function saveProfile() {
+
+  var raw = localStorage.getItem('user'), u = raw ? JSON.parse(raw) : {};
+
+  var fullName = (document.getElementById('settingFullName').value||'').trim();
+
+  var parts = fullName.split(' ');
+
+  u.firstName = parts[0]||u.firstName; u.lastName = parts.slice(1).join(' ')||u.lastName;
+
+  u.email = document.getElementById('settingEmail').value.trim()||u.email;
+
+  u.phone = document.getElementById('settingPhone').value.trim()||u.phone;
+
+  localStorage.setItem('user', JSON.stringify(u));
+
+  var el;
+
+  var initials = ((u.firstName||'')[0]+(u.lastName||'')[0]).toUpperCase();
+
+  if ((el=document.querySelector('.nav-avatar'))) el.textContent = initials;
+
+  if ((el=document.querySelector('.nav-name')))   el.textContent = fullName;
+
+  showToast('success','Profile updated','Your profile has been saved successfully.');
+
+}
+
+// ═══ TOAST SYSTEM ═══
+
+var toastIcons = {
+
+  success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+
+  error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+
+  info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+
+  warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+
+};
+
+function showToast(type, title, message) {
+
+  var container = document.getElementById('toastContainer');
+
+  var toast = document.createElement('div');
+
+  toast.className = 'toast-item toast-' + type;
+
+  toast.innerHTML = '<div class="toast-icon-wrap">'+toastIcons[type]+'</div><div class="toast-body"><div class="toast-title">'+title+'</div><div class="toast-msg">'+message+'</div></div><button class="toast-close-btn" onclick="dismissToast(this.parentElement)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><div class="toast-progress-bar"></div>';
+
+  container.appendChild(toast);
+
+  setTimeout(function() { dismissToast(toast); }, 3500);
+
+}
+
+function dismissToast(toast) {
+
+  if (!toast || toast.classList.contains('hiding')) return;
+
+  toast.classList.add('hiding');
+
+  setTimeout(function() { if(toast.parentElement) toast.remove(); }, 300);
+
+}
+
+// ═══ SIDEBAR ═══
+
+function toggleSidebar() {
+
+  document.getElementById('sidebar').classList.toggle('open');
+
+  document.getElementById('sidebarOverlay').classList.toggle('show');
+
+  document.getElementById('hamburger').classList.toggle('open');
+
+}
+
+// ═══ PAGE NAVIGATION ═══
+
+function showPage(name, el) {
+
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+
+  document.getElementById('page-'+name).classList.add('active');
+
+  if (el) el.classList.add('active');
+
+  if (document.getElementById('sidebar').classList.contains('open')) toggleSidebar();
+
+}
+
+// ═══ HELPERS ═══
+
+var sc = { 'Open':'open','Closed':'closed','Critical':'critical','In Progress':'in-progress','Reopen':'reopen','Resolved':'resolved' };
+
+var pc = { 'Critical':'critical','Major':'major','Minor':'minor' };
+
+function shortId(id) {
+
+  return id ? id.toString().slice(-6).toUpperCase() : '—';
+
+}
+
+function fmtDate(d) {
+
+  if (!d) return '—';
+
+  var dt = new Date(d);
+
+  if (isNaN(dt)) return d;
+
+  return dt.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+
+}
+
+function barRow(id, label, count, max, color) {
+
+  var pct = max > 0 ? Math.round((count/max)*100) : 0;
+
+  document.getElementById(id+'Fill').style.width = pct + '%';
+
+  document.getElementById(id+'Val').textContent  = count;
+
+}
+
+// ═══ LOAD DEFECTS FROM LOCAL STORAGE ═══
+
+function loadDefects(showMsg) {
+
+  var icon = document.getElementById('refreshIcon');
+
+  if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+
+  var data = getDefects();
+
+  renderTables(data);
+
+  renderStats(data);
+
+  renderReports(data);
+
+  if (showMsg) showToast('info','Refreshed', data.length + ' defect(s) loaded.');
+
+  if (icon) icon.style.animation = '';
+
+}
+
+// ── Render dashboard + view tables ──
+
+function renderTables(defects) {
+
+  var dashBody = document.getElementById('dashTableBody');
+
+  var viewBody = document.getElementById('viewTableBody');
+
+  dashBody.innerHTML = '';
+
+  viewBody.innerHTML = '';
+
+  if (defects.length === 0) {
+
+    dashBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px;font-size:13px;">No defects found.</td></tr>';
+
+    viewBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px;font-size:13px;">No defects found.</td></tr>';
+
+    return;
+
+  }
+
+  // Dashboard: show latest 10 only
+
+  var recent = defects.slice(0, 10);
+
+  recent.forEach(function(d) {
+
+    var id      = shortId(d.id);
+
+    var dateStr = fmtDate(d.date || d.createdAt);
+
+    var priCls  = pc[d.priority] || 'minor';
+
+    var stCls   = sc[d.status]   || 'open';
+
+    dashBody.insertAdjacentHTML('beforeend',
+
+      '<tr><td class="td-id">#'+id+'</td>' +
+
+      '<td class="td-title">'+escHtml(d.title)+'</td>' +
+
+      '<td><span class="pri '+priCls+'">'+escHtml(d.priority)+'</span></td>' +
+
+      '<td><span class="badge '+stCls+'">'+escHtml(d.status)+'</span></td>' +
+
+      '<td>'+escHtml(d.assignedTo||'—')+'</td>' +
+
+      '<td>'+dateStr+'</td></tr>'
+
+    );
+
+  });
+
+  // View Defects: show all
+
+  defects.forEach(function(d) {
+
+    var id      = shortId(d.id);
+
+    var dateStr = fmtDate(d.date || d.createdAt);
+
+    var priCls  = pc[d.priority] || 'minor';
+
+    var stCls   = sc[d.status]   || 'open';
+
+    viewBody.insertAdjacentHTML('beforeend',
+
+      '<tr data-priority="'+escHtml(d.priority)+'" data-status="'+escHtml(d.status)+'">' +
+
+      '<td class="td-id">#'+id+'</td>' +
+
+      '<td class="td-title">'+escHtml(d.title)+'</td>' +
+
+      '<td><span class="pri '+priCls+'">'+escHtml(d.priority)+'</span></td>' +
+
+      '<td><span class="badge '+stCls+'">'+escHtml(d.status)+'</span></td>' +
+
+      '<td>'+escHtml(d.assignedTo||'—')+'</td>' +
+
+      '<td>'+dateStr+'</td></tr>'
+
+    );
+
+  });
+
+}
+
+// ── Render stat cards ──
+
+function renderStats(defects) {
+
+  var total    = defects.length;
+
+  var open     = defects.filter(function(d){ return d.status==='Open'||d.status==='Reopen'; }).length;
+
+  var closed   = defects.filter(function(d){ return d.status==='Closed'||d.status==='Resolved'; }).length;
+
+  var critical = defects.filter(function(d){ return d.status==='Critical'||d.priority==='Critical'; }).length;
+
+  document.getElementById('statTotal').textContent    = total;
+
+  document.getElementById('statOpen').textContent     = open;
+
+  document.getElementById('statClosed').textContent   = closed;
+
+  document.getElementById('statCritical').textContent = critical;
+
+}
+
+// ── Render reports ──
+
+function renderReports(defects) {
+
+  var total = defects.length || 1; // avoid div/0
+
+  // Priority counts
+
+  var priC = defects.filter(function(d){ return d.priority==='Critical'; }).length;
+
+  var priM = defects.filter(function(d){ return d.priority==='Major'; }).length;
+
+  var priN = defects.filter(function(d){ return d.priority==='Minor'; }).length;
+
+  var maxPri = Math.max(priC, priM, priN, 1);
+
+  setBar('rPriCritical', priC, maxPri);
+
+  setBar('rPriMajor',    priM, maxPri);
+
+  setBar('rPriMinor',    priN, maxPri);
+
+  // Status counts
+
+  var stOpen = defects.filter(function(d){ return d.status==='Open'; }).length;
+
+  var stClosed = defects.filter(function(d){ return d.status==='Closed'; }).length;
+
+  var stInProg = defects.filter(function(d){ return d.status==='In Progress'; }).length;
+
+  var stCrit   = defects.filter(function(d){ return d.status==='Critical'; }).length;
+
+  var stRes    = defects.filter(function(d){ return d.status==='Resolved'; }).length;
+
+  var stReopen = defects.filter(function(d){ return d.status==='Reopen'; }).length;
+
+  var maxSt = Math.max(stOpen, stClosed, stInProg, stCrit, stRes, stReopen, 1);
+
+  setBar('rStOpen',       stOpen,   maxSt);
+
+  setBar('rStClosed',     stClosed, maxSt);
+
+  setBar('rStInProgress', stInProg, maxSt);
+
+  setBar('rStCritical',   stCrit,   maxSt);
+
+  setBar('rStResolved',   stRes,    maxSt);
+
+  setBar('rStReopen',     stReopen, maxSt);
+
+  // Assignee counts (dynamic — top 6)
+
+  var assigneeCounts = {};
+
+  defects.forEach(function(d) {
+
+    var a = (d.assignedTo||'Unassigned').trim();
+
+    assigneeCounts[a] = (assigneeCounts[a]||0) + 1;
+
+  });
+
+  var sortedAssignees = Object.entries(assigneeCounts)
+
+    .sort(function(a,b){ return b[1]-a[1]; }).slice(0,6);
+
+  var maxA = sortedAssignees.length ? sortedAssignees[0][1] : 1;
+
+  var colors = ['#6366f1','#a50034','#f59e0b','#22c55e','#3b82f6','#ec4899'];
+
+  var html = '';
+
+  sortedAssignees.forEach(function(entry, i) {
+
+    var pct = Math.round((entry[1]/maxA)*100);
+
+    html += '<div class="bar-row"><span class="bar-label" style="min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escHtml(entry[0])+'">'+escHtml(entry[0])+'</span>' +
+
+            '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+colors[i%colors.length]+'"></div></div>' +
+
+            '<span class="bar-val">'+entry[1]+'</span></div>';
+
+  });
+
+  if (!html) html = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">No data yet</div>';
+
+  document.getElementById('rAssigneeRows').innerHTML = html;
+
+  // Resolution rate
+
+  var done = defects.filter(function(d){ return d.status==='Closed'||d.status==='Resolved'; }).length;
+
+  var pct  = defects.length > 0 ? Math.round((done/defects.length)*100) : 0;
+
+  document.getElementById('rResolutionPct').textContent = pct + '%';
+
+  document.getElementById('rResTotal').textContent      = defects.length;
+
+  document.getElementById('rResDone').textContent       = done;
+
+}
+
+function setBar(id, count, max) {
+
+  var pct = Math.round((count/max)*100);
+
+  var fillEl = document.getElementById(id+'Fill');
+
+  var valEl  = document.getElementById(id+'Val');
+
+  if (fillEl) fillEl.style.width = pct + '%';
+
+  if (valEl)  valEl.textContent  = count;
+
+}
+
+function escHtml(str) {
+
+  if (!str) return '';
+
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+}
+
+// ═══ SUBMIT DEFECT ═══
+
+function g(id) { var el=document.getElementById(id); return el?el.value.trim():''; }
+
+function submitDefect(e) {
+
+  e.preventDefault();
+
+  var title=g('defTitle'), priority=g('defPriority'), assigned=g('defAssigned'), status=g('defStatus'), date=g('defDate');
+
+  if (!title||!priority||!assigned||!status||!date) {
+
+    showToast('warning','Missing fields','Please fill in all required fields marked with *');
+
+    return;
+
+  }
+
+  var description = document.getElementById('rteEditor').innerHTML;
+
+  if (document.querySelector('#rteEditor .rte-placeholder')) description = '';
+
+  var payload = {
+
+    id: Date.now().toString(36).toUpperCase(),
+
+    title:title, tracker:g('defTracker'), parent:g('defParent'), status:status, priority:priority,
+
+    testCaseId:g('defTcid'), assignedTo:assigned, date:date,
+
+    func:g('defFunction'), bugSymptom:g('defBugSymptom'), submittedBy:g('defSubmittedBy'),
+
+    modifiedBy:g('defModifiedBy'), watcher:g('defWatcher'), affectedVersion:g('defAffectedVersion'),
+
+    testEnvironment:g('defTestEnvironment'), hwVersion:g('defHwVersion'), resolution:g('defResolution'),
+
+    reproducibility:g('defReproducibility'), occurrenceRate:g('defOccurrenceRate'), severity:g('defSeverity'),
+
+    rootCauseType:g('defRootCauseType'), testLocation:g('defTestLocation'), npi:g('defNpi'),
+
+    npiEventOrder:g('defNpiEventOrder'), rootCause:g('defRootCause'), countermeasure:g('defCountermeasure'),
+
+    commitId:g('defCommitId'), fixedVersion:g('defFixedVersion'), variant:g('defVariant'),
+
+    variantVehicleInfo:g('defVariantVehicleInfo'), confirmationVersion:g('defConfirmationVersion'),
+
+    holdingReason:g('defHoldingReason'), resolvedDate:g('defResolvedDate'), testField:g('defTestField'),
+
+    bugOwner:g('defBugOwner'), openToOem:g('defOpenToOem'), againstWho:g('defAgainstWho'),
+
+    documentIssue:g('defDocumentIssue'), reqBased:g('defReqBased'), testStrategy:g('defTestStrategy'),
+
+    vlmKey:g('defVlmKey'), vlmStatus:g('defVlmStatus'), vlmAssignee:g('defVlmAssignee'),
+
+    vlmReporter:g('defVlmReporter'), oemKey:g('defOemKey'), oemStatus:g('defOemStatus'),
+
+    oemAssignee:g('defOemAssignee'), oemReporter:g('defOemReporter'), lastSendTime:g('defLastSendTime'),
+
+    lastSendLog:g('defLastSendLog'), dueDate:g('defDueDate'), reopenCount:g('defReopenCount'),
+
+    labels:g('defLabels'), description:description,
+
+    createdAt: new Date().toISOString()
+
+  };
+
+  var btn = document.querySelector('#createForm .submit-btn');
+
+  btn.disabled = true;
+
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Saving…';
+
+  try {
+
+    var defects = getDefects();
+
+    defects.unshift(payload);
+
+    saveDefects(defects);
+
+    e.target.reset();
+
+    document.getElementById('rteEditor').innerHTML='<p class="rte-placeholder">Enter description, steps to reproduce, expected vs actual results…</p>';
+
+    document.getElementById('fileList').innerHTML='';
+
+    document.getElementById('defDate').valueAsDate = new Date();
+
+    loadDefects(false);
+
+    showPage('dashboard', document.querySelectorAll('.nav-item')[0]);
+
+    // ── Execute autologin.py via Flask + show live output popup ──
+    showScriptExecutionPopup(payload);
+
+    // ── Show success popup then auto-run autologin ──
+    showDefectCreatedPopup(title, payload);
+    setTimeout(function(){ showAutoLoginPopup(payload, true); }, 600);
+
+  } catch(err) {
+
+    showToast('error','Save failed', 'Could not save defect.');
+
+  } finally {
+
+    btn.disabled = false;
+
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Submit Defect';
+
+  }
+
+}
+
+// ── Success Popup after defect save ──────────────────────────
+
+function showDefectCreatedPopup(title, payload) {
+
+  var existing = document.getElementById('_defectSuccessOverlay');
+
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+
+  overlay.id = '_defectSuccessOverlay';
+
+  overlay.style.cssText = [
+
+    'position:fixed','inset:0','background:rgba(0,0,0,0.55)',
+
+    'display:flex','align-items:center','justify-content:center',
+
+    'z-index:99999','animation:_popFadeIn 0.3s ease'
+
+  ].join(';');
+
+  overlay.innerHTML =
+
+    '<style>@keyframes _popFadeIn{from{opacity:0}to{opacity:1}}@keyframes _popSlideUp{from{opacity:0;transform:translateY(30px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}</style>' +
+
+    '<div style="background:#fff;border-radius:20px;padding:44px 52px;text-align:center;' +
+
+      'box-shadow:0 30px 80px rgba(0,0,0,0.28);max-width:440px;width:90%;' +
+
+      'animation:_popSlideUp 0.4s cubic-bezier(.22,1,.36,1)">' +
+
+      '<div style="width:76px;height:76px;background:#dcfce7;border-radius:50%;' +
+
+        'display:flex;align-items:center;justify-content:center;margin:0 auto 22px">' +
+
+        '<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5">' +
+
+          '<polyline points="20 6 9 17 4 12"/>' +
+
+        '</svg>' +
+
+      '</div>' +
+
+      '<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(165,0,52,0.08);' +
+
+        'color:#a50034;font-size:11px;font-weight:700;padding:4px 14px;border-radius:99px;' +
+
+        'margin-bottom:16px;letter-spacing:0.5px">LG Quality Management</div>' +
+
+      '<h2 style="font-size:24px;font-weight:800;color:#111;margin-bottom:10px;' +
+
+        'font-family:DM Sans,Segoe UI,sans-serif;letter-spacing:-0.5px">Defect Created!</h2>' +
+
+      '<p style="font-size:14px;color:#444;line-height:1.6;margin-bottom:6px;' +
+
+        'font-family:DM Sans,Segoe UI,sans-serif">' +
+
+        '<strong style="color:#111">' + escHtml(title) + '</strong>' +
+
+      '</p>' +
+
+      '<p style="font-size:12px;color:#aaa;margin-bottom:28px;font-family:DM Sans,Segoe UI,sans-serif">' +
+
+        'Priority: <strong style="color:#a50034">' + escHtml(payload.priority) + '</strong> &nbsp;|&nbsp; ' +
+
+        'Status: <strong style="color:#111">' + escHtml(payload.status) + '</strong> &nbsp;|&nbsp; ' +
+
+        'Assigned: <strong style="color:#111">' + escHtml(payload.assignedTo) + '</strong>' +
+
+      '</p>' +
+
+      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
+
+        '<button onclick="document.getElementById(\'_defectSuccessOverlay\').remove()" ' +
+
+          'style="background:linear-gradient(135deg,#a50034,#6b0022);color:#fff;border:none;' +
+
+          'border-radius:10px;padding:12px 32px;font-size:14px;font-weight:700;cursor:pointer;' +
+
+          'font-family:DM Sans,Segoe UI,sans-serif;transition:opacity 0.2s" ' +
+
+          'onmouseover="this.style.opacity=\'0.88\'" onmouseout="this.style.opacity=\'1\'">' +
+
+          'Done' +
+
+        '</button>' +
+
+        '<button onclick="document.getElementById(\'_defectSuccessOverlay\').remove();showPage(\'create\',document.querySelectorAll(\'.nav-item\')[1])" ' +
+
+          'style="background:transparent;color:#a50034;border:1.5px solid rgba(165,0,52,0.3);' +
+
+          'border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;' +
+
+          'font-family:DM Sans,Segoe UI,sans-serif;transition:all 0.2s" ' +
+
+          'onmouseover="this.style.background=\'rgba(165,0,52,0.05)\'" onmouseout="this.style.background=\'transparent\'">' +
+
+          '+ New Defect' +
+
+        '</button>' +
+
+      '</div>' +
+
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  // Close on backdrop click
+
+  overlay.addEventListener('click', function(ev) {
+
+    if (ev.target === overlay) overlay.remove();
+
+  });
+
+}
+
+function showAutoLoginPopup(payload, autoStart) {
+  var old = document.getElementById('_alPopupOverlay');
+  if (old) old.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = '_alPopupOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(10,14,23,0.82);display:flex;align-items:center;justify-content:center;font-family:DM Sans,Segoe UI,Arial,sans-serif;animation:_alFadeIn 0.25s ease';
+
+  overlay.innerHTML = `
+  <style>
+    @keyframes _alFadeIn  { from{opacity:0} to{opacity:1} }
+    @keyframes _alSlideUp { from{opacity:0;transform:translateY(36px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+    @keyframes _alSpin    { to{transform:rotate(360deg)} }
+    ._alm  { background:#fff; border-radius:20px; box-shadow:0 28px 80px rgba(0,0,0,0.35); width:min(96vw,600px); display:flex; flex-direction:column; overflow:hidden; animation:_alSlideUp 0.35s cubic-bezier(.34,1.56,.64,1); }
+    ._alh  { background:linear-gradient(135deg,#a50034,#6b0022); padding:18px 24px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    ._alht { color:#fff; font-size:15px; font-weight:800; display:flex; align-items:center; gap:9px; }
+    ._alhs { color:rgba(255,255,255,0.6); font-size:11px; margin-top:2px; }
+    ._alxb { background:rgba(255,255,255,0.15); border:none; border-radius:8px; width:30px; height:30px; cursor:pointer; color:#fff; font-size:17px; display:flex; align-items:center; justify-content:center; }
+    ._alxb:hover { background:rgba(255,255,255,0.28); }
+    ._alsbar { display:flex; align-items:center; padding:16px 24px; background:#f8f9fb; border-bottom:1px solid #e8eaed; gap:0; overflow-x:auto; flex-shrink:0; }
+    ._als  { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; color:#9ca3af; flex:1; transition:color 0.3s; white-space:nowrap; }
+    ._als:not(:last-child)::after { content:''; flex:1; min-width:12px; height:2px; background:#e8eaed; border-radius:99px; margin:0 6px; transition:background 0.5s; }
+    ._als.done:not(:last-child)::after { background:#16a34a; }
+    ._als.active:not(:last-child)::after { background:#fbbf24; }
+    ._alsn { width:24px; height:24px; border-radius:50%; border:2px solid #e8eaed; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; background:#fff; flex-shrink:0; transition:all 0.3s; }
+    ._als.active ._alsn { border-color:#a50034; color:#a50034; background:rgba(165,0,52,0.08); }
+    ._als.done   ._alsn { border-color:#16a34a; background:#16a34a; color:#fff; }
+    ._als.err    ._alsn { border-color:#ef4444; background:#ef4444; color:#fff; }
+    ._als.active { color:#a50034; }
+    ._als.done   { color:#16a34a; }
+    ._als.err    { color:#ef4444; }
+    ._alpbar { height:4px; background:#f0f2f5; flex-shrink:0; }
+    ._alpfill { height:100%; background:linear-gradient(90deg,#a50034,#ff6b8a); width:0%; transition:width 0.8s ease; border-radius:0 2px 2px 0; }
+    ._albody { padding:22px 24px 24px; }
+    ._allog  { background:#0f1623; border-radius:12px; padding:14px 16px; margin-bottom:16px; min-height:150px; max-height:200px; overflow-y:auto; font-family:JetBrains Mono,monospace; font-size:12px; line-height:1.9; }
+    ._allog-line { display:flex; align-items:flex-start; gap:10px; }
+    ._allog-time { color:#4b5563; flex-shrink:0; font-size:10.5px; margin-top:2px; }
+    ._allog-msg  { color:#cbd5e1; flex:1; }
+    ._allog-msg.run  { color:#fbbf24; }
+    ._allog-msg.done { color:#4ade80; }
+    ._allog-msg.err  { color:#f87171; }
+    ._alstat { display:flex; align-items:center; gap:10px; padding:11px 16px; border-radius:11px; margin-bottom:14px; font-size:13px; font-weight:600; }
+    ._alstat.running { background:#fffbeb; color:#d97706; border:1.5px solid #fde68a; }
+    ._alstat.success { background:#f0fdf4; color:#16a34a; border:1.5px solid #bbf7d0; }
+    ._alstat.failed  { background:#fef2f2; color:#dc2626; border:1.5px solid #fecaca; }
+    ._alspin { width:15px; height:15px; border:2px solid rgba(217,119,6,0.3); border-top-color:#d97706; border-radius:50%; animation:_alSpin 0.7s linear infinite; flex-shrink:0; }
+    ._albr { display:flex; gap:8px; justify-content:flex-end; }
+    ._albs { background:transparent; color:#6b7280; border:1.5px solid #e8eaed; border-radius:9px; padding:10px 20px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; }
+    ._albs:hover { border-color:#9ca3af; color:#374151; }
+  </style>
+
+  <div class="_alm">
+    <div class="_alh">
+      <div>
+        <div class="_alht">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Auto-Login — autologin.py
+        </div>
+        <div class="_alhs">Running your Python automation script</div>
+      </div>
+      <button class="_alxb" id="_alClose">✕</button>
+    </div>
+
+    <div class="_alsbar">
+      <div class="_als" id="_alT1"><div class="_alsn" id="_alN1">1</div>Going to URL</div>
+      <div class="_als" id="_alT2"><div class="_alsn" id="_alN2">2</div>Entering Credentials</div>
+      <div class="_als" id="_alT3"><div class="_alsn" id="_alN3">3</div>Login Successful</div>
+      <div class="_als" id="_alT4"><div class="_alsn" id="_alN4">4</div>Opening Form</div>
+    </div>
+    <div class="_alpbar"><div class="_alpfill" id="_alPF"></div></div>
+
+    <div class="_albody">
+      <div class="_alstat running" id="_alStat">
+        <div class="_alspin"></div>
+        <span id="_alStatTxt">Launching autologin.py…</span>
+      </div>
+      <div class="_allog" id="_alLog">
+        <div class="_allog-line"><span class="_allog-time">--:--:--</span><span class="_allog-msg run">⚡ Starting autologin.py…</span></div>
+      </div>
+      <div class="_albr">
+        <button class="_albs" id="_alCancelBtn">Close</button>
+      </div>
+    </div>
+  </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // ── Helpers ─────────────────────────────────────────────────
+  function ts() {
+    var n = new Date();
+    return [n.getHours(),n.getMinutes(),n.getSeconds()].map(function(v){return String(v).padStart(2,'0');}).join(':');
+  }
+  function addLog(msg, cls) {
+    var log = document.getElementById('_alLog');
+    var d = document.createElement('div');
+    d.className = '_allog-line';
+    d.innerHTML = '<span class="_allog-time">'+ts()+'</span><span class="_allog-msg '+(cls||'')+'">'+msg+'</span>';
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+  function setStep(n, state) {
+    var t = document.getElementById('_alT'+n);
+    var nm = document.getElementById('_alN'+n);
+    if (!t) return;
+    t.className = '_als ' + state;
+    if (state==='done') nm.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    else if (state==='err') nm.innerHTML = '✕';
+    else nm.textContent = n;
+  }
+  function setProgress(pct) { document.getElementById('_alPF').style.width = pct+'%'; }
+  function setStatus(type, html) {
+    var el = document.getElementById('_alStat');
+    el.className = '_alstat '+type;
+    var icons = {
+      running: '<div class="_alspin"></div>',
+      success: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+      failed:  '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    };
+    el.innerHTML = (icons[type]||'')+'<span id="_alStatTxt">'+html+'</span>';
+  }
+
+  // ── Simulate steps while autologin.py runs ───────────────────
+  // The popup shows animated steps timed to match typical script execution.
+  // autologin.py is launched via lgdefect:// protocol (registered by setup.bat).
+  // Steps animate on a timer — adjust delays to match your script speed.
+
+  var STEPS = [
+    { n:1, label:'Going to URL',         delay:500,  pct:20,  log:'🌐 Navigating to login URL…',          cls:'run'  },
+    { n:1, label:'Going to URL',         delay:2000, pct:25,  log:'✓ Page loaded successfully',            cls:'done' },
+    { n:2, label:'Entering Credentials', delay:2500, pct:45,  log:'🔑 Entering username and password…',   cls:'run'  },
+    { n:2, label:'Entering Credentials', delay:4500, pct:50,  log:'✓ Credentials entered',                cls:'done' },
+    { n:3, label:'Login Successful',     delay:5000, pct:70,  log:'🔓 Submitting login form…',            cls:'run'  },
+    { n:3, label:'Login Successful',     delay:7000, pct:75,  log:'✅ Login successful!',                 cls:'done' },
+    { n:4, label:'Opening Form',         delay:7500, pct:90,  log:'📋 Opening defect submission form…',   cls:'run'  },
+    { n:4, label:'Opening Form',         delay:9500, pct:100, log:'✅ Defect form is open and ready!',    cls:'done' },
+  ];
+
+  var timers = [];
+  var closed = false;
+
+  function runStepAnimation() {
+    // Launch the actual script via protocol
+    window.location.href = 'lgdefect://run';
+
+    STEPS.forEach(function(s) {
+      var t = setTimeout(function() {
+        if (closed) return;
+        var state = s.cls === 'done' ? 'done' : 'active';
+        setStep(s.n, state);
+        // mark previous steps done
+        for (var i = 1; i < s.n; i++) setStep(i, 'done');
+        setProgress(s.pct);
+        addLog(s.log, s.cls);
+        if (s.n === 4 && s.cls === 'done') {
+          setStatus('success', '✅ autologin.py completed — defect form is open!');
+          document.getElementById('_alCancelBtn').textContent = '✓ Done';
+        } else {
+          setStatus('running', 'Running autologin.py — step '+s.n+' of 4…');
+        }
+      }, s.delay);
+      timers.push(t);
+    });
+  }
+
+  if (autoStart) {
+    setTimeout(runStepAnimation, 400);
+  }
+
+  // ── Close ────────────────────────────────────────────────────
+  function closePopup() {
+    closed = true;
+    timers.forEach(clearTimeout);
+    var o = document.getElementById('_alPopupOverlay');
+    if (o) o.remove();
+  }
+  document.getElementById('_alClose').addEventListener('click', closePopup);
+  document.getElementById('_alCancelBtn').addEventListener('click', closePopup);
+  overlay.addEventListener('click', function(ev){ if(ev.target===overlay) closePopup(); });
+}
+
+
+// ═══ FILTER TABLE ═══
+
+function filterTable() {
+
+  var search   = document.getElementById('searchInput').value.toLowerCase();
+
+  var priority = document.getElementById('filterPriority').value;
+
+  var status   = document.getElementById('filterStatus').value;
+
+  document.querySelectorAll('#viewTableBody tr').forEach(function(row) {
+
+    if (!row.cells || row.cells.length < 4) { row.style.display=''; return; }
+
+    var title = row.cells[1].textContent.toLowerCase();
+
+    var ok = title.includes(search) && (!priority||row.dataset.priority===priority) && (!status||row.dataset.status===status);
+
+    row.style.display = ok ? '' : 'none';
+
+  });
+
+}
+
+// ═══ PASSWORD STRENGTH ═══
+
+function checkPassStrength() {
+
+  var val=document.getElementById('newPass').value;
+
+  var bar=document.getElementById('settingStrengthBar'), fill=document.getElementById('settingStrengthFill'), lbl=document.getElementById('settingStrengthLabel');
+
+  if (!val){ bar.classList.remove('show'); return; }
+
+  bar.classList.add('show');
+
+  var score=0;
+
+  if(val.length>=8)score++; if(/[A-Z]/.test(val))score++; if(/[0-9]/.test(val))score++; if(/[^A-Za-z0-9]/.test(val))score++;
+
+  var levels=[{pct:'25%',color:'#ef4444',label:'Weak',lc:'#ef4444'},{pct:'50%',color:'#f59e0b',label:'Fair',lc:'#d97706'},{pct:'75%',color:'#eab308',label:'Good',lc:'#a16207'},{pct:'100%',color:'#22c55e',label:'Strong',lc:'#15803d'}];
+
+  var lvl=levels[score-1]||levels[0];
+
+  fill.style.width=lvl.pct; fill.style.background=lvl.color; lbl.textContent=lvl.label; lbl.style.color=lvl.lc;
+
+}
+
+// ═══ EXPORT CSV ═══
+
+function exportCSV() {
+
+  var rows=[['ID','Title','Priority','Status','Assigned To','Date']];
+
+  document.querySelectorAll('#viewTableBody tr').forEach(function(row) {
+
+    if(!row.cells||row.cells.length<4)return;
+
+    rows.push(Array.from(row.querySelectorAll('td')).map(function(td){ return '"'+td.textContent.trim().replace(/"/g,'""')+'"'; }));
+
+  });
+
+  var csv=rows.map(function(r){return r.join(',');}).join('\n');
+
+  var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='defects.csv'; a.click();
+
+  showToast('info','Export complete','Defects downloaded as defects.csv');
+
+}
+
+function confirmDelete() {
+
+  if(confirm('Delete your account? This cannot be undone.')) showToast('error','Account deleted','Your account has been removed.');
+
+}
+
+// ═══ SCRIPT EXECUTION POPUP ═══
+
+function showScriptExecutionPopup(payload) {
+  var existing = document.getElementById('_scriptExecOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = '_scriptExecOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999999;animation:_popFadeIn 0.25s ease';
+
+  overlay.innerHTML = `
+    <style>
+      @keyframes _seSlideUp{from{opacity:0;transform:translateY(24px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+      @keyframes _seSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+      @keyframes _seBlink{0%,100%{opacity:1}50%{opacity:0.3}}
+      ._seCard{background:#0f1623;border-radius:18px;width:580px;max-width:95vw;box-shadow:0 30px 80px rgba(0,0,0,0.5);animation:_seSlideUp 0.35s cubic-bezier(.22,1,.36,1);overflow:hidden;font-family:'DM Sans',sans-serif;}
+      ._seHeader{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid rgba(255,255,255,0.07);}
+      ._seTitle{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:#fff;}
+      ._seStatusDot{width:9px;height:9px;border-radius:50%;background:#f59e0b;animation:_seBlink 1s infinite;}
+      ._seStatusDot.done{background:#22c55e;animation:none;}
+      ._seStatusDot.err{background:#ef4444;animation:none;}
+      ._seClose{background:rgba(255,255,255,0.07);border:none;color:rgba(255,255,255,0.5);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+      ._seClose:hover{background:rgba(255,255,255,0.15);color:#fff;}
+      ._seBody{padding:0;}
+      ._seInfo{display:flex;gap:8px;padding:14px 22px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.05);flex-wrap:wrap;}
+      ._seChip{font-size:11px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.55);padding:4px 10px;border-radius:99px;font-family:'JetBrains Mono',monospace;}
+      ._seChip span{color:#a78bfa;}
+      ._seTerminal{background:#070d14;margin:0;padding:16px 20px;min-height:220px;max-height:320px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.8;}
+      ._seLine{display:flex;gap:10px;margin-bottom:2px;animation:_seSlideUp 0.2s ease;}
+      ._seTs{color:#374151;flex-shrink:0;}
+      ._seOut{color:#d1fae5;}
+      ._seErr{color:#fca5a5;}
+      ._seInfo2{color:#93c5fd;}
+      ._seSys{color:#fde68a;}
+      ._seCursor{display:inline-block;width:8px;height:14px;background:#a50034;animation:_seBlink 0.8s infinite;vertical-align:middle;margin-left:3px;}
+      ._seFooter{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-top:1px solid rgba(255,255,255,0.07);}
+      ._seExitBadge{font-size:12px;font-family:'JetBrains Mono',monospace;padding:4px 12px;border-radius:99px;font-weight:700;}
+      ._seExitBadge.ok{background:#14532d;color:#4ade80;}
+      ._seExitBadge.fail{background:#450a0a;color:#f87171;}
+      ._seExitBadge.running{background:#1c1917;color:#fbbf24;}
+      ._seDoneBtn{padding:8px 20px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;display:none;}
+      ._seDoneBtn.show{display:block;}
+      ._seDoneBtn.ok{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;}
+      ._seDoneBtn.fail{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;}
+    </style>
+    <div class="_seCard">
+      <div class="_seHeader">
+        <div class="_seTitle">
+          <div class="_seStatusDot" id="_seDot"></div>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span>Executing autologin.py</span>
+        </div>
+        <button class="_seClose" id="_seCloseBtn">×</button>
+      </div>
+      <div class="_seBody">
+        <div class="_seInfo">
+          <div class="_seChip">file: <span>autologin.py</span></div>
+          <div class="_seChip">defect: <span id="_seDefTitle"></span></div>
+          <div class="_seChip">pid: <span id="_sePid">—</span></div>
+        </div>
+        <div class="_seTerminal" id="_seTerminal">
+          <div class="_seLine"><span class="_seTs">00:00</span><span class="_seSys">$ python autologin.py</span></div>
+        </div>
+      </div>
+      <div class="_seFooter">
+        <div class="_seExitBadge running" id="_seExit">● running</div>
+        <button class="_seDoneBtn" id="_seDoneBtn">Close</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  // Set defect title chip
+  var titleEl = document.getElementById('_seDefTitle');
+  if (titleEl) titleEl.textContent = (payload.title||'').slice(0,30) + ((payload.title||'').length>30?'…':'');
+
+  var terminal = document.getElementById('_seTerminal');
+  var dot = document.getElementById('_seDot');
+  var exitBadge = document.getElementById('_seExit');
+  var doneBtn = document.getElementById('_seDoneBtn');
+  var closeBtn = document.getElementById('_seCloseBtn');
+  var startTime = Date.now();
+
+  function ts() {
+    var s = Math.floor((Date.now()-startTime)/1000);
+    var m = Math.floor(s/60); s = s%60;
+    return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  }
+
+  function addLine(text, cls) {
+    var line = document.createElement('div');
+    line.className = '_seLine';
+    line.innerHTML = '<span class="_seTs">'+ts()+'</span><span class="_se'+cls+'">'+escHtml(text)+'</span>';
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  // Cursor blink while running
+  var cursor = document.createElement('span');
+  cursor.className = '_seCursor';
+  cursor.id = '_seCursor';
+  terminal.appendChild(cursor);
+
+  addLine('Sending defect payload to Flask…', 'Info2');
+
+  // Call Flask
+  fetch('/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(res) {
+    return res.json().then(function(data) { return { ok: res.ok, data: data }; });
+  })
+  .then(function(r) {
+    var c = document.getElementById('_seCursor');
+    if (c) c.remove();
+
+    var pidEl = document.getElementById('_sePid');
+    if (pidEl && r.data.pid) pidEl.textContent = r.data.pid;
+
+    if (r.data.output) {
+      var lines = r.data.output.split('\n');
+      lines.forEach(function(ln) { if (ln.trim()) addLine(ln, 'Out'); });
+    }
+    if (r.data.stderr) {
+      var errLines = r.data.stderr.split('\n');
+      errLines.forEach(function(ln) { if (ln.trim()) addLine(ln, 'Err'); });
+    }
+
+    if (r.ok && r.data.exit_code === 0) {
+      addLine('✓ autologin.py finished successfully (exit 0)', 'Sys');
+      dot.className = '_seStatusDot done';
+      exitBadge.className = '_seExitBadge ok';
+      exitBadge.textContent = '✓ exit 0';
+      doneBtn.className = '_seDoneBtn show ok';
+      doneBtn.textContent = '✓ Done';
+    } else {
+      var code = r.data.exit_code !== undefined ? r.data.exit_code : 1;
+      addLine('✗ autologin.py exited with code ' + code, 'Err');
+      dot.className = '_seStatusDot err';
+      exitBadge.className = '_seExitBadge fail';
+      exitBadge.textContent = '✗ exit ' + code;
+      doneBtn.className = '_seDoneBtn show fail';
+      doneBtn.textContent = 'Close';
+    }
+  })
+  .catch(function(err) {
+    var c = document.getElementById('_seCursor');
+    if (c) c.remove();
+    addLine('✗ Flask not reachable — open via http://127.0.0.1:5000', 'Err');
+    addLine('  Run: python app.py  then refresh', 'Err');
+    dot.className = '_seStatusDot err';
+    exitBadge.className = '_seExitBadge fail';
+    exitBadge.textContent = '✗ connection refused';
+    doneBtn.className = '_seDoneBtn show fail';
+    doneBtn.textContent = 'Close';
+  });
+
+  function closePopup() { overlay.remove(); }
+  doneBtn.addEventListener('click', closePopup);
+  closeBtn.addEventListener('click', closePopup);
+  overlay.addEventListener('click', function(ev){ if(ev.target===overlay) closePopup(); });
+}
+
+// ═══ INIT ═══
+
+document.getElementById('defDate').valueAsDate = new Date();
+
+// Load from localStorage immediately
+
+loadDefects(false);
+
+// ═══ RICH TEXT EDITOR ═══
+
+var savedRange=null;
+
+function saveRange(){ var sel=window.getSelection(); if(sel&&sel.rangeCount>0)savedRange=sel.getRangeAt(0).cloneRange(); }
+
+function restoreRange(){ var ed=document.getElementById('rteEditor'); ed.focus(); if(savedRange){var sel=window.getSelection();sel.removeAllRanges();sel.addRange(savedRange);} }
+
+function fmt(cmd,val){ restoreRange(); document.execCommand(cmd,false,val!==undefined?val:null); saveRange(); }
+
+function applyFont(){ restoreRange(); document.execCommand('fontName',false,document.getElementById('fontFamily').value); }
+
+function applySize(){ restoreRange(); document.execCommand('fontSize',false,document.getElementById('fontSize').value); }
+
+function insertRteLink(){ var url=prompt('Enter URL:','https://'); if(url){restoreRange();document.execCommand('createLink',false,url);} }
+
+var editor=document.getElementById('rteEditor');
+
+editor.addEventListener('mouseup',saveRange);
+
+editor.addEventListener('keyup',saveRange);
+
+editor.addEventListener('focus',function(){ var ph=this.querySelector('.rte-placeholder'); if(ph)this.innerHTML=''; });
+
+// ═══ FILE ATTACHMENTS ═══
+
+function fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+
+function getFileIcon(type){ if(type.startsWith('image'))return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'; if(type==='application/pdf')return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'; return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'; }
+
+function addFiles(files){ var list=document.getElementById('fileList'); Array.from(files).forEach(function(file){ var id='fi_'+Date.now()+'_'+Math.floor(Math.random()*99999); var div=document.createElement('div'); div.className='file-item'; div.id=id; div.innerHTML=getFileIcon(file.type)+'<span class="fn">'+file.name+'</span><span class="fs">'+fmtSize(file.size)+'</span><button type="button" class="rm" onclick="document.getElementById(\''+id+'\').remove()">×</button>'; list.appendChild(div); }); document.getElementById('fileInput').value=''; }
+
+function onDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('over'); }
+
+function onDragLeave(){ document.getElementById('dropzone').classList.remove('over'); }
+
+function onDrop(e){ e.preventDefault(); document.getElementById('dropzone').classList.remove('over'); addFiles(e.dataTransfer.files); }
+
+</script>
+
+</body>
+
+</html>
