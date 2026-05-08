@@ -1326,8 +1326,7 @@ class App:
              ["Vijay","Rahul","Anita","Priya","Sundar","Meena"], False),
             ("Against Who",          "against_who",          "combo",
              ["SW Team","HW Team","System Team","Supplier","OEM"], False),
-            ("Priority",             "priority",             "combo",
-             ["Critical","Major","Minor","Trivial"], True),
+
             ("Document Issue",       "document_issue",       "entry", None, False),
             ("VLM Key",              "vlm_key",              "entry", None, False),
             ("VLM Reporter",         "vlm_reporter",         "entry", None, False),
@@ -1367,7 +1366,7 @@ class App:
              ["Connectivity","Display","Navigation","Audio","ADAS","Power"], False),
             ("Open To OEM",          "open_to_oem",          "combo",
              ["Yes","No","Pending"], False),
-            ("Title",                "title",                "entry", None, True),
+
             ("REQ Based",            "req_based",            "entry", None, False),
             ("VLM Status",           "vlm_status",           "entry", None, False),
             ("VLM Assignee",         "vlm_assignee",         "entry", None, False),
