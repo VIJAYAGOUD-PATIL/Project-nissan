@@ -1,6 +1,6 @@
 """
 Defect Tracker — Python tkinter
-Login → Project Selection (aa, bb, cc + Add card) → Defect Dashboard
+Login → Project Selection → Defect Dashboard
 Run: python defect_tracker.py
 """
 
@@ -76,7 +76,6 @@ def zoomed(root):
         except Exception:
             root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
 
-
 def styled_entry(parent, textvariable=None, show="", width=30):
     e = tk.Entry(parent, textvariable=textvariable, show=show, width=width,
                  bg="#f9fafb", fg=TEXT_PRI, font=("Segoe UI", 11),
@@ -84,36 +83,33 @@ def styled_entry(parent, textvariable=None, show="", width=30):
                  insertbackground=TEXT_PRI)
     return e
 
-
 def nav_button(parent, text, command, active=False):
     bg = BRAND if active else SIDEBAR_BG
     btn = tk.Button(parent, text=text, bg=bg, fg="#ffffff",
                     font=("Segoe UI", 11), relief="flat",
-                    anchor="w", padx=20, pady=10, cursor="hand2",
+                    anchor="w", padx=20, pady=12, cursor="hand2",
                     activebackground=SIDEBAR2, activeforeground="#fff",
                     command=command)
     btn.pack(fill="x", padx=8, pady=2)
-
     def enter(e):
         if btn.cget("bg") != BRAND:
             btn.config(bg=SIDEBAR2)
     def leave(e):
         if btn.cget("bg") != BRAND:
             btn.config(bg=SIDEBAR_BG)
-
     btn.bind("<Enter>", enter)
     btn.bind("<Leave>", leave)
     return btn
 
-
 def scrollable_frame(parent):
-    wrap = tk.Frame(parent, bg=BG)
-    wrap.pack(fill="both", expand=True)
-    wrap.columnconfigure(0, weight=1)
-    wrap.rowconfigure(0, weight=1)
+    """Returns (outer_frame, inner_frame). outer_frame fills parent; inner_frame is scrollable content."""
+    outer = tk.Frame(parent, bg=BG)
+    outer.pack(fill="both", expand=True)
+    outer.columnconfigure(0, weight=1)
+    outer.rowconfigure(0, weight=1)
 
-    canvas = tk.Canvas(wrap, bg=BG, highlightthickness=0)
-    vsb = ttk.Scrollbar(wrap, orient="vertical", command=canvas.yview)
+    canvas = tk.Canvas(outer, bg=BG, highlightthickness=0)
+    vsb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=vsb.set)
     canvas.grid(row=0, column=0, sticky="nsew")
     vsb.grid(row=0, column=1, sticky="ns")
@@ -121,20 +117,15 @@ def scrollable_frame(parent):
     inner = tk.Frame(canvas, bg=BG)
     wid = canvas.create_window((0, 0), window=inner, anchor="nw")
 
-    inner.bind("<Configure>",
-               lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    canvas.bind("<Configure>",
-                lambda e: canvas.itemconfig(wid, width=e.width))
-    canvas.bind("<MouseWheel>",
-                lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
+    inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    canvas.bind("<Configure>", lambda e: canvas.itemconfig(wid, width=e.width))
+    canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
     canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
     canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
     return inner
 
-
 def icon_bg(color):
     return ICON_BG.get(color, "#f0f2f5")
-
 
 # ── Single persistent root window ─────────────────────────────────────────────
 _ROOT = None
@@ -146,16 +137,14 @@ def get_root():
     return _ROOT
 
 def switch_to(page_class, *args):
-    """Destroy all widgets in root and rebuild with a new page class."""
     root = get_root()
     for w in root.winfo_children():
         w.destroy()
     root.configure(bg=BG)
     page_class(root, *args)
 
-
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 1 — LOGIN
+#  PAGE 1 — LOGIN  (full screen, two-column)
 # ══════════════════════════════════════════════════════════════════════════════
 class LoginWindow:
     def __init__(self, root: tk.Tk):
@@ -172,103 +161,115 @@ class LoginWindow:
         root.columnconfigure(1, weight=1)
         root.rowconfigure(0, weight=1)
 
-        # Left branding panel
+        # ── Left branding panel (fills full height) ────────────────────
         left = tk.Frame(root, bg=SIDEBAR_BG)
         left.grid(row=0, column=0, sticky="nsew")
+        left.columnconfigure(0, weight=1)
+        left.rowconfigure(0, weight=1)
 
         center = tk.Frame(left, bg=SIDEBAR_BG)
-        center.place(relx=0.5, rely=0.5, anchor="center")
+        center.grid(row=0, column=0)  # stays centred via grid weight
 
-        logo_c = tk.Canvas(center, width=88, height=88,
+        logo_c = tk.Canvas(center, width=100, height=100,
                             bg=SIDEBAR_BG, highlightthickness=0)
-        logo_c.pack(pady=(0, 22))
-        logo_c.create_oval(4, 4, 84, 84, fill=BRAND, outline="")
-        logo_c.create_text(44, 44, text="DT",
-                            fill="white", font=("Segoe UI", 26, "bold"))
+        logo_c.pack(pady=(0, 24))
+        logo_c.create_oval(4, 4, 96, 96, fill=BRAND, outline="")
+        logo_c.create_text(50, 50, text="DT", fill="white",
+                            font=("Segoe UI", 30, "bold"))
 
         tk.Label(center, text="Defect Tracker",
                  bg=SIDEBAR_BG, fg="#ffffff",
-                 font=("Segoe UI", 28, "bold")).pack()
+                 font=("Segoe UI", 30, "bold")).pack()
         tk.Label(center, text="Track. Fix. Ship.",
                  bg=SIDEBAR_BG, fg=TEXT_SEC,
-                 font=("Segoe UI", 13)).pack(pady=(6, 40))
+                 font=("Segoe UI", 14)).pack(pady=(8, 48))
 
         for txt in ["Multi-project support",
                     "Real-time defect tracking",
-                    "Priority management"]:
+                    "Priority management",
+                    "Analytics & reporting"]:
             pill = tk.Frame(center, bg=SIDEBAR2,
-                            highlightbackground="#2d3f5a",
-                            highlightthickness=1)
-            pill.pack(fill="x", pady=5, ipady=9, ipadx=16)
+                            highlightbackground="#2d3f5a", highlightthickness=1)
+            pill.pack(fill="x", pady=6, ipady=10, ipadx=20)
             tk.Label(pill, text="✓", bg=SIDEBAR2,
-                     fg=BRAND, font=("Segoe UI", 12, "bold")).pack(side="left", padx=(12, 8))
+                     fg=BRAND, font=("Segoe UI", 13, "bold")).pack(side="left", padx=(14, 10))
             tk.Label(pill, text=txt, bg=SIDEBAR2,
-                     fg="#c9d3e0", font=("Segoe UI", 11)).pack(side="left")
+                     fg="#c9d3e0", font=("Segoe UI", 12)).pack(side="left")
 
+        # vertical divider
         tk.Frame(root, bg="#2d3f5a", width=1).grid(row=0, column=0, sticky="nse")
 
-        # Right login form
+        # ── Right login form (fills full height) ──────────────────────
         right = tk.Frame(root, bg="#131f30")
         right.grid(row=0, column=1, sticky="nsew")
+        right.columnconfigure(0, weight=1)
+        right.rowconfigure(0, weight=1)
 
         form = tk.Frame(right, bg="#131f30")
-        form.place(relx=0.5, rely=0.5, anchor="center")
+        form.grid(row=0, column=0)   # centred by grid weight
 
         tk.Label(form, text="Welcome back",
                  bg="#131f30", fg="#ffffff",
-                 font=("Segoe UI", 26, "bold")).pack(anchor="w")
+                 font=("Segoe UI", 28, "bold")).pack(anchor="w")
         tk.Label(form, text="Sign in to your account",
                  bg="#131f30", fg=TEXT_SEC,
-                 font=("Segoe UI", 12)).pack(anchor="w", pady=(4, 32))
+                 font=("Segoe UI", 13)).pack(anchor="w", pady=(6, 36))
 
+        # Username
         tk.Label(form, text="Username",
                  bg="#131f30", fg="#c9d3e0",
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 6))
+                 font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(0, 6))
         self._user_var = tk.StringVar()
         user_f = tk.Frame(form, bg="#1e2f47",
                           highlightbackground="#2d3f5a", highlightthickness=1)
-        user_f.pack(fill="x", pady=(0, 20))
+        user_f.pack(fill="x", pady=(0, 22))
         user_e = tk.Entry(user_f, textvariable=self._user_var,
                           bg="#1e2f47", fg="#ffffff", insertbackground="#ffffff",
-                          font=("Segoe UI", 12), relief="flat", bd=0, width=34)
-        user_e.pack(fill="x", padx=14, pady=11)
+                          font=("Segoe UI", 13), relief="flat", bd=0, width=34)
+        user_e.pack(fill="x", padx=16, pady=13)
         user_e.bind("<FocusIn>",  lambda e: user_f.config(highlightbackground=BRAND))
         user_e.bind("<FocusOut>", lambda e: user_f.config(highlightbackground="#2d3f5a"))
 
+        # Password
         tk.Label(form, text="Password",
                  bg="#131f30", fg="#c9d3e0",
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 6))
+                 font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(0, 6))
         self._pwd_var = tk.StringVar()
         pwd_f = tk.Frame(form, bg="#1e2f47",
                          highlightbackground="#2d3f5a", highlightthickness=1)
-        pwd_f.pack(fill="x", pady=(0, 30))
+        pwd_f.pack(fill="x", pady=(0, 36))
         pwd_e = tk.Entry(pwd_f, textvariable=self._pwd_var, show="●",
                          bg="#1e2f47", fg="#ffffff", insertbackground="#ffffff",
-                         font=("Segoe UI", 12), relief="flat", bd=0, width=34)
-        pwd_e.pack(fill="x", padx=14, pady=11)
+                         font=("Segoe UI", 13), relief="flat", bd=0, width=34)
+        pwd_e.pack(fill="x", padx=16, pady=13)
         pwd_e.bind("<FocusIn>",  lambda e: pwd_f.config(highlightbackground=BRAND))
         pwd_e.bind("<FocusOut>", lambda e: pwd_f.config(highlightbackground="#2d3f5a"))
 
         btn = tk.Button(form, text="Sign In  →",
                         bg=BRAND, fg="#ffffff",
-                        font=("Segoe UI", 13, "bold"), relief="flat", cursor="hand2",
+                        font=("Segoe UI", 14, "bold"), relief="flat", cursor="hand2",
                         activebackground=BRAND_DARK, activeforeground="#fff",
-                        padx=20, pady=13, command=self._login)
+                        padx=20, pady=15, command=self._login)
         btn.pack(fill="x")
         btn.bind("<Enter>", lambda e: btn.config(bg=BRAND_DARK))
         btn.bind("<Leave>", lambda e: btn.config(bg=BRAND))
 
         self._err_lbl = tk.Label(form, text="",
                                   bg="#131f30", fg="#f87171",
-                                  font=("Segoe UI", 11))
-        self._err_lbl.pack(pady=(16, 0))
+                                  font=("Segoe UI", 12))
+        self._err_lbl.pack(pady=(18, 0))
+
+        # hint
+        tk.Label(form, text="Default: admin / admin123",
+                 bg="#131f30", fg="#4a5e7a",
+                 font=("Segoe UI", 10)).pack(pady=(12, 0))
+
         root.bind("<Return>", lambda e: self._login())
 
     def _login(self):
         u = self._user_var.get().strip()
         p = self._pwd_var.get().strip()
         if u == USERNAME and p == PASSWORD:
-            # FIX: use after() to avoid nested mainloop — safe page transition
             self.root.after(0, lambda: switch_to(ProjectPage))
         else:
             self._err_lbl.config(text="✗  Invalid username or password")
@@ -277,7 +278,7 @@ class LoginWindow:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 2 — PROJECT SELECTION
+#  PAGE 2 — PROJECT SELECTION  (full screen)
 # ══════════════════════════════════════════════════════════════════════════════
 class ProjectPage:
     def __init__(self, root: tk.Tk):
@@ -292,43 +293,37 @@ class ProjectPage:
         root = self.root
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=0)
-        root.rowconfigure(1, weight=1)
+        root.rowconfigure(1, weight=1)   # body row fills all remaining space
 
-        # ── Top navbar ─────────────────────────────────────────────────
-        nav = tk.Frame(root, bg=SIDEBAR_BG, height=62)
+        # ── Navbar ─────────────────────────────────────────────────────
+        nav = tk.Frame(root, bg=SIDEBAR_BG, height=64)
         nav.grid(row=0, column=0, sticky="ew")
         nav.pack_propagate(False)
 
         logo_f = tk.Frame(nav, bg=SIDEBAR_BG)
-        logo_f.pack(side="left", padx=24, pady=14)
-        lc = tk.Canvas(logo_f, width=32, height=32,
-                        bg=SIDEBAR_BG, highlightthickness=0)
+        logo_f.pack(side="left", padx=28, pady=16)
+        lc = tk.Canvas(logo_f, width=34, height=34, bg=SIDEBAR_BG, highlightthickness=0)
         lc.pack(side="left")
-        lc.create_oval(2, 2, 30, 30, fill=BRAND, outline="")
-        lc.create_text(16, 16, text="DT", fill="white",
-                        font=("Segoe UI", 10, "bold"))
+        lc.create_oval(2, 2, 32, 32, fill=BRAND, outline="")
+        lc.create_text(17, 17, text="DT", fill="white", font=("Segoe UI", 11, "bold"))
         tk.Label(logo_f, text="  Defect Tracker",
-                 bg=SIDEBAR_BG, fg="#fff",
-                 font=("Segoe UI", 13, "bold")).pack(side="left")
+                 bg=SIDEBAR_BG, fg="#fff", font=("Segoe UI", 14, "bold")).pack(side="left")
 
         right_nav = tk.Frame(nav, bg=SIDEBAR_BG)
-        right_nav.pack(side="right", padx=24, pady=14)
+        right_nav.pack(side="right", padx=28, pady=16)
         tk.Button(right_nav, text="Logout",
                   bg=SIDEBAR2, fg=TEXT_SEC,
                   font=("Segoe UI", 10), relief="flat", cursor="hand2",
-                  padx=14, pady=5,
+                  padx=14, pady=6,
                   command=self._logout).pack(side="right", padx=(10, 0))
-        av = tk.Canvas(right_nav, width=32, height=32,
-                        bg=SIDEBAR_BG, highlightthickness=0)
+        av = tk.Canvas(right_nav, width=34, height=34, bg=SIDEBAR_BG, highlightthickness=0)
         av.pack(side="right")
-        av.create_oval(2, 2, 30, 30, fill=BRAND, outline="")
-        av.create_text(16, 16, text="AD", fill="white",
-                        font=("Segoe UI", 9, "bold"))
+        av.create_oval(2, 2, 32, 32, fill=BRAND, outline="")
+        av.create_text(17, 17, text="AD", fill="white", font=("Segoe UI", 10, "bold"))
         tk.Label(right_nav, text="admin",
-                 bg=SIDEBAR_BG, fg="#c9d3e0",
-                 font=("Segoe UI", 11)).pack(side="right", padx=8)
+                 bg=SIDEBAR_BG, fg="#c9d3e0", font=("Segoe UI", 12)).pack(side="right", padx=10)
 
-        # ── Scrollable body ────────────────────────────────────────────
+        # ── Scrollable body (row=1, weight=1 → fills all remaining height) ──
         body_wrap = tk.Frame(root, bg=BG)
         body_wrap.grid(row=1, column=0, sticky="nsew")
         body_wrap.columnconfigure(0, weight=1)
@@ -358,36 +353,39 @@ class ProjectPage:
         for w in self._body.winfo_children():
             w.destroy()
 
+        # Header
         hdr = tk.Frame(self._body, bg=BG)
-        hdr.pack(pady=(50, 8))
+        hdr.pack(pady=(50, 8), padx=40, fill="x")
         tk.Label(hdr, text="Select a Project",
                  bg=BG, fg=TEXT_PRI,
-                 font=("Segoe UI", 30, "bold")).pack()
-        tk.Label(hdr, text="Click on a project to manage its defects",
+                 font=("Segoe UI", 32, "bold")).pack(anchor="w")
+        tk.Label(hdr, text="Choose a project below to manage its defects, or create a new one.",
                  bg=BG, fg=TEXT_SEC,
-                 font=("Segoe UI", 13)).pack(pady=(6, 0))
+                 font=("Segoe UI", 13)).pack(anchor="w", pady=(6, 0))
 
+        # Divider row
         div = tk.Frame(self._body, bg=BG)
-        div.pack(pady=(28, 0))
-        tk.Frame(div, bg=BORDER, height=1, width=120).pack(side="left", pady=8)
-        tk.Label(div, text="  Available Projects  ",
-                 bg=BG, fg=TEXT_MUT,
-                 font=("Segoe UI", 10)).pack(side="left")
-        tk.Frame(div, bg=BORDER, height=1, width=120).pack(side="left", pady=8)
+        div.pack(pady=(28, 0), padx=40, fill="x")
+        tk.Frame(div, bg=BORDER, height=1).pack(fill="x")
 
+        tk.Label(self._body, text="Available Projects",
+                 bg=BG, fg=TEXT_MUT,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=40, pady=(14, 0))
+
+        # Cards grid
         cards_frame = tk.Frame(self._body, bg=BG)
-        cards_frame.pack(pady=24, padx=40)
+        cards_frame.pack(pady=(16, 40), padx=30, fill="x")
 
         all_projects = list(APP_DATA["projects"])
         cols = 4
         for i, proj in enumerate(all_projects):
-            row_i = i // cols
-            col_i = i % cols
-            self._project_card(cards_frame, proj, row_i, col_i)
+            cards_frame.columnconfigure(i % cols, weight=1)
+            self._project_card(cards_frame, proj, i // cols, i % cols)
 
         total = len(all_projects)
         add_row = total // cols
         add_col = total % cols
+        cards_frame.columnconfigure(add_col, weight=1)
         self._add_card(cards_frame, add_row, add_col)
 
     def _project_card(self, parent, proj, row_i, col_i):
@@ -399,25 +397,23 @@ class ProjectPage:
         proj_defects = [d for d in APP_DATA["defects"] if d.get("project") == name]
         open_c = sum(1 for d in proj_defects if d.get("status") == "Open")
 
-        # FIX: removed pack_propagate(False) and redundant card.config(width=220)
-        # so the card sizes naturally from its child widgets and is fully visible
         card = tk.Frame(parent, bg=SURFACE,
-                        highlightbackground=BORDER,
-                        highlightthickness=1,
+                        highlightbackground=BORDER, highlightthickness=1,
                         cursor="hand2")
-        card.grid(row=row_i, column=col_i, padx=14, pady=14, sticky="n")
+        card.grid(row=row_i, column=col_i, padx=12, pady=12, sticky="nsew")
 
+        # Accent top bar
         tk.Frame(card, bg=color, height=5).pack(fill="x")
 
         body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=22, pady=22, fill="x")
+        body.pack(padx=24, pady=24, fill="both", expand=True)
 
-        ic_bg_color = icon_bg(color)
-        ic = tk.Canvas(body, width=50, height=50,
-                        bg=SURFACE, highlightthickness=0)
-        ic.pack(anchor="w", pady=(0, 12))
-        ic.create_oval(2, 2, 48, 48, fill=ic_bg_color, outline=color, width=1)
-        ic.create_text(25, 25, text=icon, fill=color, font=("Segoe UI", 18))
+        # Icon
+        ic_bg_c = icon_bg(color)
+        ic = tk.Canvas(body, width=54, height=54, bg=SURFACE, highlightthickness=0)
+        ic.pack(anchor="w", pady=(0, 14))
+        ic.create_oval(2, 2, 52, 52, fill=ic_bg_c, outline=color, width=1)
+        ic.create_text(27, 27, text=icon, fill=color, font=("Segoe UI", 20))
 
         tk.Label(body, text=f"Project  {name.upper()}",
                  bg=SURFACE, fg=TEXT_PRI,
@@ -425,11 +421,11 @@ class ProjectPage:
         tk.Label(body, text=desc,
                  bg=SURFACE, fg=TEXT_SEC,
                  font=("Segoe UI", 10), justify="left",
-                 wraplength=170).pack(anchor="w", pady=(4, 14))
+                 wraplength=190).pack(anchor="w", pady=(4, 16))
 
         stats = tk.Frame(body, bg="#f4f5f7",
                          highlightbackground=BORDER, highlightthickness=1)
-        stats.pack(fill="x", pady=(0, 16), ipadx=8, ipady=7)
+        stats.pack(fill="x", pady=(0, 16), ipadx=10, ipady=8)
         tk.Label(stats,
                  text=f"{len(proj_defects)} defects  •  {open_c} open",
                  bg="#f4f5f7", fg=TEXT_SEC,
@@ -440,7 +436,7 @@ class ProjectPage:
                              font=("Segoe UI", 10, "bold"),
                              relief="flat", cursor="hand2",
                              activebackground=BRAND_DARK,
-                             pady=9,
+                             pady=10,
                              command=lambda n=name: self._open_project(n))
         open_btn.pack(fill="x")
 
@@ -454,43 +450,38 @@ class ProjectPage:
 
     def _add_card(self, parent, row_i, col_i):
         DASH = "#c8cdd4"
-        # FIX: removed pack_propagate(False) and redundant card.config(width=220)
         card = tk.Frame(parent, bg=SURFACE,
-                        highlightbackground=DASH,
-                        highlightthickness=1,
+                        highlightbackground=DASH, highlightthickness=1,
                         cursor="hand2")
-        card.grid(row=row_i, column=col_i, padx=14, pady=14, sticky="n")
+        card.grid(row=row_i, column=col_i, padx=12, pady=12, sticky="nsew")
 
         tk.Frame(card, bg=DASH, height=5).pack(fill="x")
-
         body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=22, pady=22, fill="x")
+        body.pack(padx=24, pady=24, fill="both", expand=True)
 
-        ic = tk.Canvas(body, width=50, height=50,
-                        bg=SURFACE, highlightthickness=0)
-        ic.pack(anchor="w", pady=(0, 12))
-        ic.create_oval(2, 2, 48, 48, fill="#f0f2f5", outline=DASH, width=1)
-        ic.create_text(25, 25, text="+", fill=TEXT_MUT, font=("Segoe UI", 22))
+        ic = tk.Canvas(body, width=54, height=54, bg=SURFACE, highlightthickness=0)
+        ic.pack(anchor="w", pady=(0, 14))
+        ic.create_oval(2, 2, 52, 52, fill="#f0f2f5", outline=DASH, width=1)
+        ic.create_text(27, 27, text="+", fill=TEXT_MUT, font=("Segoe UI", 24))
 
         tk.Label(body, text="Add New Project",
                  bg=SURFACE, fg=TEXT_SEC,
                  font=("Segoe UI", 15, "bold")).pack(anchor="w")
         tk.Label(body, text="Create a custom\nproject workspace",
                  bg=SURFACE, fg=TEXT_MUT,
-                 font=("Segoe UI", 10), justify="left").pack(anchor="w", pady=(4, 14))
+                 font=("Segoe UI", 10), justify="left").pack(anchor="w", pady=(4, 16))
 
         spacer = tk.Frame(body, bg="#f4f5f7",
                           highlightbackground=DASH, highlightthickness=1)
-        spacer.pack(fill="x", pady=(0, 16), ipadx=8, ipady=7)
+        spacer.pack(fill="x", pady=(0, 16), ipadx=10, ipady=8)
         tk.Label(spacer, text="New workspace",
-                 bg="#f4f5f7", fg=TEXT_MUT,
-                 font=("Segoe UI", 10)).pack()
+                 bg="#f4f5f7", fg=TEXT_MUT, font=("Segoe UI", 10)).pack()
 
         add_btn = tk.Button(body, text="+ Create Project",
                             bg=SIDEBAR2, fg="#c9d3e0",
                             font=("Segoe UI", 10, "bold"),
                             relief="flat", cursor="hand2",
-                            pady=9, command=self._show_add_dialog)
+                            pady=10, command=self._show_add_dialog)
         add_btn.pack(fill="x")
         add_btn.bind("<Enter>", lambda e: add_btn.config(bg=SIDEBAR_BG))
         add_btn.bind("<Leave>", lambda e: add_btn.config(bg=SIDEBAR2))
@@ -503,13 +494,12 @@ class ProjectPage:
         dlg.title("Add New Project")
         dlg.configure(bg=SURFACE)
         dlg.resizable(False, False)
-        dlg.geometry("420x380")
+        dlg.geometry("440x400")
         dlg.grab_set()
-
         dlg.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width()  - 420) // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() - 380) // 2
-        dlg.geometry(f"420x380+{x}+{y}")
+        x = self.root.winfo_x() + (self.root.winfo_width()  - 440) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 400) // 2
+        dlg.geometry(f"440x400+{x}+{y}")
 
         tk.Frame(dlg, bg=BRAND, height=5).pack(fill="x")
         body = tk.Frame(dlg, bg=SURFACE)
@@ -595,7 +585,6 @@ class ProjectPage:
                   command=dlg.destroy).pack(side="left", padx=10)
 
     def _open_project(self, project_name):
-        # FIX: use after() — no nested mainloop
         self.root.after(0, lambda: switch_to(DashboardWindow, project_name))
 
     def _logout(self):
@@ -604,7 +593,7 @@ class ProjectPage:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PAGE 3 — DEFECT DASHBOARD
+#  PAGE 3 — DEFECT DASHBOARD  (full screen, sidebar + content)
 # ══════════════════════════════════════════════════════════════════════════════
 class DashboardWindow:
     def __init__(self, root: tk.Tk, project: str):
@@ -618,7 +607,7 @@ class DashboardWindow:
         proj_meta = next((p for p in APP_DATA["projects"] if p["name"] == project), {})
         self._color = proj_meta.get("color", BRAND)
         self._build()
-        self._page_create()
+        self._page_create()   # default page
 
     def _build(self):
         root = self.root
@@ -626,43 +615,45 @@ class DashboardWindow:
         root.rowconfigure(0, weight=0)
         root.rowconfigure(1, weight=1)
 
-        nav = tk.Frame(root, bg=SIDEBAR_BG, height=62)
+        # ── Navbar ────────────────────────────────────────────────────
+        nav = tk.Frame(root, bg=SIDEBAR_BG, height=64)
         nav.grid(row=0, column=0, sticky="ew")
         nav.pack_propagate(False)
 
         logo_f = tk.Frame(nav, bg=SIDEBAR_BG)
-        logo_f.pack(side="left", padx=24, pady=14)
-        lc = tk.Canvas(logo_f, width=32, height=32, bg=SIDEBAR_BG, highlightthickness=0)
+        logo_f.pack(side="left", padx=28, pady=16)
+        lc = tk.Canvas(logo_f, width=34, height=34, bg=SIDEBAR_BG, highlightthickness=0)
         lc.pack(side="left")
-        lc.create_oval(2, 2, 30, 30, fill=self._color, outline="")
-        lc.create_text(16, 16, text="DT", fill="white", font=("Segoe UI", 10, "bold"))
+        lc.create_oval(2, 2, 32, 32, fill=self._color, outline="")
+        lc.create_text(17, 17, text="DT", fill="white", font=("Segoe UI", 11, "bold"))
         tk.Label(logo_f, text=f"  Project {self.project.upper()}",
-                 bg=SIDEBAR_BG, fg="#fff",
-                 font=("Segoe UI", 13, "bold")).pack(side="left")
+                 bg=SIDEBAR_BG, fg="#fff", font=("Segoe UI", 14, "bold")).pack(side="left")
 
         right_nav = tk.Frame(nav, bg=SIDEBAR_BG)
-        right_nav.pack(side="right", padx=24)
+        right_nav.pack(side="right", padx=28)
         tk.Button(right_nav, text="Logout",
                   bg=SIDEBAR2, fg=TEXT_SEC,
                   font=("Segoe UI", 10), relief="flat", cursor="hand2",
-                  padx=14, pady=5, command=self._logout).pack(side="right", padx=(10, 0))
+                  padx=14, pady=6, command=self._logout).pack(side="right", padx=(10, 0))
         tk.Button(right_nav, text="← All Projects",
                   bg=SIDEBAR2, fg="#c9d3e0",
                   font=("Segoe UI", 10), relief="flat", cursor="hand2",
-                  padx=14, pady=5, command=self._go_back).pack(side="right")
+                  padx=14, pady=6, command=self._go_back).pack(side="right")
 
+        # ── Main split (sidebar + content, fills remaining height) ────
         main_frame = tk.Frame(root, bg=BG)
         main_frame.grid(row=1, column=0, sticky="nsew")
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(0, weight=1)
 
-        sidebar = tk.Frame(main_frame, bg=SIDEBAR_BG, width=210)
+        # Sidebar
+        sidebar = tk.Frame(main_frame, bg=SIDEBAR_BG, width=220)
         sidebar.grid(row=0, column=0, sticky="nsew")
         sidebar.pack_propagate(False)
 
         tk.Label(sidebar, text="NAVIGATION",
                  bg=SIDEBAR_BG, fg=TEXT_MUT,
-                 font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=20, pady=(24, 10))
+                 font=("Segoe UI", 9, "bold")).pack(anchor="w", padx=22, pady=(28, 12))
 
         self._nav_btns = {}
         pages = [
@@ -677,27 +668,45 @@ class DashboardWindow:
                              active=(key == "create"))
             self._nav_btns[key] = btn
 
-        tk.Frame(sidebar, bg=SIDEBAR2, height=1).pack(fill="x", padx=16, pady=20)
+        tk.Frame(sidebar, bg=SIDEBAR2, height=1).pack(fill="x", padx=18, pady=24)
+
+        # Project info in sidebar
+        proj_meta = next((p for p in APP_DATA["projects"] if p["name"] == self.project), {})
+        ic_bg_c = icon_bg(self._color)
+        ic2 = tk.Canvas(sidebar, width=44, height=44, bg=SIDEBAR_BG, highlightthickness=0)
+        ic2.pack(padx=22, anchor="w")
+        ic2.create_oval(2, 2, 42, 42, fill=ic_bg_c, outline=self._color, width=1)
+        ic2.create_text(22, 22, text=proj_meta.get("icon","◈"),
+                         fill=self._color, font=("Segoe UI", 16))
+
+        tk.Label(sidebar, text=f"Project {self.project.upper()}",
+                 bg=SIDEBAR_BG, fg="#c9d3e0",
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=22, pady=(8, 2))
+
         self._count_lbl = tk.Label(sidebar,
-                                    text=f"  {len(self._proj_defects())} defect(s)",
+                                    text=f"{len(self._proj_defects())} defect(s)",
                                     bg=SIDEBAR_BG, fg=TEXT_MUT,
                                     font=("Segoe UI", 10))
-        self._count_lbl.pack(anchor="w", padx=8)
+        self._count_lbl.pack(anchor="w", padx=22)
 
+        # Content area (fills all remaining space)
         self._main = tk.Frame(main_frame, bg=BG)
         self._main.grid(row=0, column=1, sticky="nsew")
         self._main.columnconfigure(0, weight=1)
-        self._main.rowconfigure(0, weight=1)
+        self._main.rowconfigure(0, weight=0)   # row 0 = topbar (fixed height)
+        self._main.rowconfigure(1, weight=1)   # row 1 = scroll area (expands)
 
     def _switch_page(self, key):
         for w in self._main.winfo_children():
             w.destroy()
         for k, btn in self._nav_btns.items():
             btn.config(bg=BRAND if k == key else SIDEBAR_BG)
-        dispatch = {"create": self._page_create,
-                    "modify": self._page_modify,
-                    "view":   self._page_view,
-                    "results": self._page_results}
+        dispatch = {
+            "create":  self._page_create,
+            "modify":  self._page_modify,
+            "view":    self._page_view,
+            "results": self._page_results,
+        }
         dispatch[key]()
 
     def _proj_defects(self):
@@ -706,76 +715,253 @@ class DashboardWindow:
     def _topbar(self, title, subtitle=""):
         bar = tk.Frame(self._main, bg=SURFACE,
                         highlightbackground=BORDER, highlightthickness=1)
-        bar.pack(fill="x")
+        bar.grid(row=0, column=0, sticky="ew")
+        # Accent stripe on left
+        stripe = tk.Frame(bar, bg=self._color, width=4)
+        stripe.pack(side="left", fill="y")
         inner = tk.Frame(bar, bg=SURFACE)
-        inner.pack(padx=32, pady=18, fill="x")
+        inner.pack(side="left", padx=28, pady=20, fill="x", expand=True)
         tk.Label(inner, text=title,
                  bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 18, "bold")).pack(anchor="w")
+                 font=("Segoe UI", 20, "bold")).pack(anchor="w")
         if subtitle:
             tk.Label(inner, text=subtitle,
                      bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 11)).pack(anchor="w", pady=(3, 0))
+                     font=("Segoe UI", 11)).pack(anchor="w", pady=(4, 0))
 
     # ════════════════════════════════════════════════════════════════════
-    #  CREATE DEFECT
+    #  CREATE DEFECT  — single prominent card, fills page
     # ════════════════════════════════════════════════════════════════════
     def _page_create(self):
         self._topbar("Create Defect",
                      f"Log a new defect in Project {self.project.upper()}")
-        scroll = scrollable_frame(self._main)
 
-        card = tk.Frame(scroll, bg=SURFACE,
+        # Scrollable area fills remaining space
+        scroll_outer = tk.Frame(self._main, bg=BG)
+        scroll_outer.grid(row=1, column=0, sticky="nsew")
+        scroll_outer.columnconfigure(0, weight=1)
+        scroll_outer.rowconfigure(0, weight=1)
+
+        canvas = tk.Canvas(scroll_outer, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(scroll_outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+
+        inner = tk.Frame(canvas, bg=BG)
+        wid = canvas.create_window((0, 0), window=inner, anchor="nw")
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(wid, width=e.width))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+
+        # ── The Create Defect card ─────────────────────────────────────
+        card = tk.Frame(inner, bg=SURFACE,
                         highlightbackground=BORDER, highlightthickness=1)
-        card.pack(padx=32, pady=24, fill="x")
+        card.pack(padx=36, pady=30, fill="x")
+
+        # Card header strip
+        card_hdr = tk.Frame(card, bg=self._color)
+        card_hdr.pack(fill="x")
+        tk.Label(card_hdr, text="  ✚  New Defect Report",
+                 bg=self._color, fg="#ffffff",
+                 font=("Segoe UI", 13, "bold")).pack(side="left", padx=16, pady=12)
+
         body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=30, pady=26, fill="x")
+        body.pack(padx=32, pady=28, fill="x")
+        body.columnconfigure(0, weight=1)
+        body.columnconfigure(1, weight=1)
 
-        tk.Frame(body, bg=self._color, height=3, width=40).pack(anchor="w", pady=(0, 18))
-
-        tk.Label(body, text="Title *", bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        # ── Row 1: Title (full width) ──────────────────────────────────
+        tk.Label(body, text="Defect Title *",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).grid(row=0, column=0, columnspan=2,
+                                                       sticky="w", pady=(0, 5))
         title_var = tk.StringVar()
-        styled_entry(body, textvariable=title_var).pack(fill="x", ipady=7)
+        title_e = styled_entry(body, textvariable=title_var, width=80)
+        title_e.grid(row=1, column=0, columnspan=2, sticky="ew", ipady=8, pady=(0, 20))
 
-        tk.Label(body, text="Description", bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(18, 5))
-        desc_box = tk.Text(body, height=4, bg="#f9fafb", fg=TEXT_PRI,
+        # ── Row 2: Description (full width) ───────────────────────────
+        tk.Label(body, text="Description",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).grid(row=2, column=0, columnspan=2,
+                                                       sticky="w", pady=(0, 5))
+        desc_box = tk.Text(body, height=5, bg="#f9fafb", fg=TEXT_PRI,
                            font=("Segoe UI", 11), relief="flat",
                            highlightbackground=BORDER, highlightthickness=1)
-        desc_box.pack(fill="x")
+        desc_box.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 20))
 
-        row2 = tk.Frame(body, bg=SURFACE)
-        row2.pack(fill="x", pady=(18, 0))
-        row2.columnconfigure(0, weight=1)
-        row2.columnconfigure(1, weight=1)
-
+        # ── Row 3: Priority | Status ───────────────────────────────────
+        pri_frame = tk.Frame(body, bg=SURFACE)
+        pri_frame.grid(row=4, column=0, sticky="ew", padx=(0, 12), pady=(0, 20))
+        tk.Label(pri_frame, text="Priority",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
         pri_var = tk.StringVar(value="Minor")
+        pri_cb = ttk.Combobox(pri_frame, textvariable=pri_var,
+                               values=["Critical", "Major", "Minor", "Low"],
+                               state="readonly", font=("Segoe UI", 11))
+        pri_cb.pack(fill="x", ipady=6)
+
+        sta_frame = tk.Frame(body, bg=SURFACE)
+        sta_frame.grid(row=4, column=1, sticky="ew", padx=(12, 0), pady=(0, 20))
+        tk.Label(sta_frame, text="Status",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
         sta_var = tk.StringVar(value="Open")
+        sta_cb = ttk.Combobox(sta_frame, textvariable=sta_var,
+                               values=["Open", "In Progress", "Closed", "Resolved"],
+                               state="readonly", font=("Segoe UI", 11))
+        sta_cb.pack(fill="x", ipady=6)
 
-        for col, lbl, var, opts in [
-            (0, "Priority", pri_var, ["Critical", "Major", "Minor", "Low"]),
-            (1, "Status",   sta_var, ["Open", "In Progress", "Closed", "Resolved"]),
-        ]:
-            f = tk.Frame(row2, bg=SURFACE)
-            f.grid(row=0, column=col, padx=(0, 0) if col == 0 else (14, 0), sticky="ew")
-            tk.Label(f, text=lbl, bg=SURFACE, fg=TEXT_PRI,
-                     font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
-            ttk.Combobox(f, textvariable=var, values=opts,
-                         state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=6)
-
-        tk.Label(body, text="Assignee", bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(18, 5))
+        # ── Row 4: Assignee | Severity ─────────────────────────────────
+        asgn_frame = tk.Frame(body, bg=SURFACE)
+        asgn_frame.grid(row=5, column=0, sticky="ew", padx=(0, 12), pady=(0, 20))
+        tk.Label(asgn_frame, text="Assignee",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
         assign_var = tk.StringVar()
-        styled_entry(body, textvariable=assign_var).pack(fill="x", ipady=7)
+        styled_entry(asgn_frame, textvariable=assign_var).pack(fill="x", ipady=8)
+
+        sev_frame = tk.Frame(body, bg=SURFACE)
+        sev_frame.grid(row=5, column=1, sticky="ew", padx=(12, 0), pady=(0, 20))
+        tk.Label(sev_frame, text="Severity",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        sev_var = tk.StringVar(value="Medium")
+        sev_cb = ttk.Combobox(sev_frame, textvariable=sev_var,
+                               values=["Low", "Medium", "High", "Blocker"],
+                               state="readonly", font=("Segoe UI", 11))
+        sev_cb.pack(fill="x", ipady=6)
+
+        # ── Row 5: Steps to reproduce (full width) ─────────────────────
+        tk.Label(body, text="Steps to Reproduce",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).grid(row=6, column=0, columnspan=2,
+                                                       sticky="w", pady=(0, 5))
+        steps_box = tk.Text(body, height=4, bg="#f9fafb", fg=TEXT_PRI,
+                            font=("Segoe UI", 11), relief="flat",
+                            highlightbackground=BORDER, highlightthickness=1)
+        steps_box.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(0, 28))
+
+        # ── Divider + Submit button ────────────────────────────────────
+        tk.Frame(body, bg=BORDER, height=1).grid(row=8, column=0, columnspan=2,
+                                                   sticky="ew", pady=(0, 20))
+
+        btn_row = tk.Frame(body, bg=SURFACE)
+        btn_row.grid(row=9, column=0, columnspan=2, sticky="ew")
+
+        # Container for the success card (placed after the form card)
+        success_frame = tk.Frame(inner, bg=BG)
+        success_frame.pack(fill="x", padx=36, pady=(0, 30))
+
+        def _show_created_card(defect):
+            """Render an inline success card showing the newly created defect."""
+            for w in success_frame.winfo_children():
+                w.destroy()
+
+            PRI_COLOR = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
+            STA_COLOR = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
+
+            sc = tk.Frame(success_frame, bg=SURFACE,
+                          highlightbackground=GREEN, highlightthickness=2)
+            sc.pack(fill="x")
+
+            # Green success header
+            shdr = tk.Frame(sc, bg=GREEN)
+            shdr.pack(fill="x")
+            tk.Label(shdr, text=f"  ✔  Defect #{defect['id']} Created Successfully!",
+                     bg=GREEN, fg="#ffffff",
+                     font=("Segoe UI", 13, "bold")).pack(side="left", padx=16, pady=12)
+
+            sbody = tk.Frame(sc, bg=SURFACE)
+            sbody.pack(padx=32, pady=22, fill="x")
+            sbody.columnconfigure(0, weight=1)
+            sbody.columnconfigure(1, weight=1)
+
+            # Title
+            tk.Label(sbody, text="Title",
+                     bg=SURFACE, fg=TEXT_SEC,
+                     font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w")
+            tk.Label(sbody, text=defect.get("title", ""),
+                     bg=SURFACE, fg=TEXT_PRI,
+                     font=("Segoe UI", 13, "bold")).grid(row=1, column=0, columnspan=2,
+                                                          sticky="w", pady=(2, 14))
+
+            # Description
+            desc_text = defect.get("description", "")
+            if desc_text:
+                tk.Label(sbody, text="Description",
+                         bg=SURFACE, fg=TEXT_SEC,
+                         font=("Segoe UI", 9, "bold")).grid(row=2, column=0, columnspan=2, sticky="w")
+                tk.Label(sbody, text=desc_text,
+                         bg=SURFACE, fg=TEXT_SEC,
+                         font=("Segoe UI", 11), wraplength=700, justify="left"
+                         ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(2, 14))
+
+            # Badges row
+            badge_row = tk.Frame(sbody, bg=SURFACE)
+            badge_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(0, 14))
+
+            pri = defect.get("priority", "Minor")
+            sta = defect.get("status", "Open")
+            sev = defect.get("severity", "Medium")
+            for label, val, color in [
+                ("Priority", pri, PRI_COLOR.get(pri, TEXT_SEC)),
+                ("Status",   sta, STA_COLOR.get(sta, TEXT_SEC)),
+                ("Severity", sev, PURPLE),
+            ]:
+                grp = tk.Frame(badge_row, bg=SURFACE)
+                grp.pack(side="left", padx=(0, 18))
+                tk.Label(grp, text=label,
+                         bg=SURFACE, fg=TEXT_MUT,
+                         font=("Segoe UI", 8, "bold")).pack(anchor="w")
+                pill = tk.Frame(grp, bg=color)
+                pill.pack(anchor="w", pady=(3, 0))
+                tk.Label(pill, text=val, bg=color, fg="#fff",
+                         font=("Segoe UI", 9, "bold"),
+                         padx=10, pady=4).pack()
+
+            # Meta info
+            meta_row = tk.Frame(sbody, bg=SURFACE)
+            meta_row.grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, 8))
+
+            for label, val in [
+                ("Assignee", defect.get("assignee") or "—"),
+                ("Project",  defect.get("project", "").upper()),
+                ("Created",  defect.get("created", "")),
+                ("ID",       f"#{defect.get('id', '')}"),
+            ]:
+                grp = tk.Frame(meta_row, bg=SURFACE)
+                grp.pack(side="left", padx=(0, 28))
+                tk.Label(grp, text=label,
+                         bg=SURFACE, fg=TEXT_MUT,
+                         font=("Segoe UI", 8, "bold")).pack(anchor="w")
+                tk.Label(grp, text=val,
+                         bg=SURFACE, fg=TEXT_PRI,
+                         font=("Segoe UI", 11)).pack(anchor="w", pady=(2, 0))
+
+            # Steps to reproduce
+            steps_text = defect.get("steps", "")
+            if steps_text:
+                tk.Frame(sbody, bg=BORDER, height=1).grid(row=6, column=0, columnspan=2,
+                                                            sticky="ew", pady=(8, 12))
+                tk.Label(sbody, text="Steps to Reproduce",
+                         bg=SURFACE, fg=TEXT_SEC,
+                         font=("Segoe UI", 9, "bold")).grid(row=7, column=0, columnspan=2, sticky="w")
+                tk.Label(sbody, text=steps_text,
+                         bg=SURFACE, fg=TEXT_SEC,
+                         font=("Segoe UI", 10), wraplength=700, justify="left"
+                         ).grid(row=8, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
         def do_create():
             t = title_var.get().strip()
             if not t:
-                messagebox.showerror("Validation", "Title is required.")
+                messagebox.showerror("Validation", "Defect title is required.")
                 return
             new_id = max((d.get("id", 0) for d in APP_DATA["defects"]), default=0) + 1
-            APP_DATA["defects"].append({
+            new_defect = {
                 "id":          new_id,
                 "project":     self.project,
                 "title":       t,
@@ -783,24 +969,48 @@ class DashboardWindow:
                 "priority":    pri_var.get(),
                 "status":      sta_var.get(),
                 "assignee":    assign_var.get().strip(),
+                "severity":    sev_var.get(),
+                "steps":       steps_box.get("1.0", "end").strip(),
                 "created":     datetime.date.today().strftime("%d %b %Y"),
-            })
+            }
+            APP_DATA["defects"].append(new_defect)
             save_data(APP_DATA)
-            self._count_lbl.config(text=f"  {len(self._proj_defects())} defect(s)")
-            messagebox.showinfo("Created", f"Defect #{new_id} created successfully!")
+            self._count_lbl.config(text=f"{len(self._proj_defects())} defect(s)")
+            _show_created_card(new_defect)
+            # Reset form
             title_var.set("")
             desc_box.delete("1.0", "end")
             assign_var.set("")
+            steps_box.delete("1.0", "end")
             pri_var.set("Minor")
             sta_var.set("Open")
+            sev_var.set("Medium")
 
-        btn = tk.Button(body, text="Create Defect",
-                        bg=self._color, fg="#fff",
-                        font=("Segoe UI", 12, "bold"), relief="flat", cursor="hand2",
-                        activebackground=BRAND_DARK, pady=12, command=do_create)
-        btn.pack(fill="x", pady=(26, 0))
-        btn.bind("<Enter>", lambda e: btn.config(bg=BRAND_DARK))
-        btn.bind("<Leave>", lambda e: btn.config(bg=self._color))
+        submit_btn = tk.Button(btn_row, text="  ✚  Create Defect",
+                               bg=self._color, fg="#fff",
+                               font=("Segoe UI", 13, "bold"),
+                               relief="flat", cursor="hand2",
+                               activebackground=BRAND_DARK,
+                               padx=28, pady=14,
+                               command=do_create)
+        submit_btn.pack(side="left")
+        submit_btn.bind("<Enter>", lambda e: submit_btn.config(bg=BRAND_DARK))
+        submit_btn.bind("<Leave>", lambda e: submit_btn.config(bg=self._color))
+
+        reset_btn = tk.Button(btn_row, text="Reset",
+                              bg="#f0f2f5", fg=TEXT_SEC,
+                              font=("Segoe UI", 12), relief="flat", cursor="hand2",
+                              padx=20, pady=14,
+                              command=lambda: [
+                                  title_var.set(""),
+                                  desc_box.delete("1.0", "end"),
+                                  assign_var.set(""),
+                                  steps_box.delete("1.0", "end"),
+                                  pri_var.set("Minor"),
+                                  sta_var.set("Open"),
+                                  sev_var.set("Medium"),
+                              ])
+        reset_btn.pack(side="left", padx=14)
 
     # ════════════════════════════════════════════════════════════════════
     #  MODIFY DEFECT
@@ -808,33 +1018,57 @@ class DashboardWindow:
     def _page_modify(self):
         self._topbar("Modify Defect",
                      f"Edit an existing defect in Project {self.project.upper()}")
-        scroll = scrollable_frame(self._main)
+        scroll_outer = tk.Frame(self._main, bg=BG)
+        scroll_outer.grid(row=1, column=0, sticky="nsew")
+        scroll_outer.columnconfigure(0, weight=1)
+        scroll_outer.rowconfigure(0, weight=1)
+
+        canvas = tk.Canvas(scroll_outer, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(scroll_outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        inner = tk.Frame(canvas, bg=BG)
+        wid = canvas.create_window((0, 0), window=inner, anchor="nw")
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(wid, width=e.width))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+
         defects = self._proj_defects()
 
         if not defects:
-            tk.Label(scroll, text="No defects found. Create one first!",
-                     bg=BG, fg=TEXT_SEC,
-                     font=("Segoe UI", 13)).pack(pady=70)
+            empty = tk.Frame(inner, bg=SURFACE,
+                             highlightbackground=BORDER, highlightthickness=1)
+            empty.pack(padx=36, pady=40, fill="both", expand=True)
+            tk.Label(empty, text="📭  No Defects Yet",
+                     bg=SURFACE, fg=TEXT_PRI,
+                     font=("Segoe UI", 18, "bold")).pack(pady=(60, 8))
+            tk.Label(empty, text="Create your first defect using the 'Create Defect' tab.",
+                     bg=SURFACE, fg=TEXT_SEC,
+                     font=("Segoe UI", 12)).pack(pady=(0, 60))
             return
 
-        sel_card = tk.Frame(scroll, bg=SURFACE,
+        # Selector card
+        sel_card = tk.Frame(inner, bg=SURFACE,
                             highlightbackground=BORDER, highlightthickness=1)
-        sel_card.pack(padx=32, pady=(24, 16), fill="x")
+        sel_card.pack(padx=36, pady=(30, 16), fill="x")
+        sel_hdr = tk.Frame(sel_card, bg=self._color)
+        sel_hdr.pack(fill="x")
+        tk.Label(sel_hdr, text="  ✎  Select Defect to Edit",
+                 bg=self._color, fg="#fff",
+                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=16, pady=10)
         sel_body = tk.Frame(sel_card, bg=SURFACE)
         sel_body.pack(padx=30, pady=22, fill="x")
-
-        tk.Label(sel_body, text="Select Defect",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(0, 10))
-
         choices = [f"#{d['id']}  —  {d['title']}" for d in defects]
         sel_var = tk.StringVar(value=choices[0])
         ttk.Combobox(sel_body, textvariable=sel_var, values=choices,
                      state="readonly", font=("Segoe UI", 11),
-                     width=60).pack(fill="x", ipady=7)
+                     width=70).pack(fill="x", ipady=7)
 
-        edit_wrap = tk.Frame(scroll, bg=BG)
-        edit_wrap.pack(fill="x", padx=32, pady=(0, 28))
+        edit_wrap = tk.Frame(inner, bg=BG)
+        edit_wrap.pack(fill="x", padx=36, pady=(0, 30))
 
         def load(*_):
             for w in edit_wrap.winfo_children():
@@ -845,43 +1079,60 @@ class DashboardWindow:
             ecard = tk.Frame(edit_wrap, bg=SURFACE,
                              highlightbackground=BORDER, highlightthickness=1)
             ecard.pack(fill="x")
+            ehdr = tk.Frame(ecard, bg=SIDEBAR2)
+            ehdr.pack(fill="x")
+            tk.Label(ehdr, text=f"  Editing Defect #{d.get('id','')}  —  {d.get('title','')}",
+                     bg=SIDEBAR2, fg="#c9d3e0",
+                     font=("Segoe UI", 11, "bold")).pack(side="left", padx=16, pady=10)
+
             ebody = tk.Frame(ecard, bg=SURFACE)
-            ebody.pack(padx=30, pady=26, fill="x")
+            ebody.pack(padx=32, pady=26, fill="x")
+            ebody.columnconfigure(0, weight=1)
+            ebody.columnconfigure(1, weight=1)
 
             tk.Label(ebody, text="Title *", bg=SURFACE, fg=TEXT_PRI,
-                     font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+                     font=("Segoe UI", 11, "bold")).grid(row=0, column=0, columnspan=2,
+                                                          sticky="w", pady=(0, 5))
             t_var = tk.StringVar(value=d.get("title", ""))
-            styled_entry(ebody, textvariable=t_var).pack(fill="x", ipady=7)
+            styled_entry(ebody, textvariable=t_var, width=80).grid(row=1, column=0, columnspan=2,
+                                                                     sticky="ew", ipady=8, pady=(0, 18))
 
             tk.Label(ebody, text="Description", bg=SURFACE, fg=TEXT_PRI,
-                     font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(18, 5))
+                     font=("Segoe UI", 11, "bold")).grid(row=2, column=0, columnspan=2,
+                                                          sticky="w", pady=(0, 5))
             dtxt = tk.Text(ebody, height=4, bg="#f9fafb", fg=TEXT_PRI,
                            font=("Segoe UI", 11), relief="flat",
                            highlightbackground=BORDER, highlightthickness=1)
             dtxt.insert("1.0", d.get("description", ""))
-            dtxt.pack(fill="x")
+            dtxt.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 18))
 
-            row2 = tk.Frame(ebody, bg=SURFACE)
-            row2.pack(fill="x", pady=(18, 0))
-            row2.columnconfigure(0, weight=1)
-            row2.columnconfigure(1, weight=1)
+            p_frame = tk.Frame(ebody, bg=SURFACE)
+            p_frame.grid(row=4, column=0, sticky="ew", padx=(0, 12), pady=(0, 18))
+            tk.Label(p_frame, text="Priority", bg=SURFACE, fg=TEXT_PRI,
+                     font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
             p_var = tk.StringVar(value=d.get("priority", "Minor"))
-            s_var = tk.StringVar(value=d.get("status",   "Open"))
-            for col, lbl, var, opts in [
-                (0, "Priority", p_var, ["Critical", "Major", "Minor", "Low"]),
-                (1, "Status",   s_var, ["Open", "In Progress", "Closed", "Resolved"]),
-            ]:
-                f = tk.Frame(row2, bg=SURFACE)
-                f.grid(row=0, column=col, padx=(0, 0) if col == 0 else (14, 0), sticky="ew")
-                tk.Label(f, text=lbl, bg=SURFACE, fg=TEXT_PRI,
-                         font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
-                ttk.Combobox(f, textvariable=var, values=opts,
-                             state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=6)
+            ttk.Combobox(p_frame, textvariable=p_var,
+                         values=["Critical", "Major", "Minor", "Low"],
+                         state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=6)
+
+            s_frame = tk.Frame(ebody, bg=SURFACE)
+            s_frame.grid(row=4, column=1, sticky="ew", padx=(12, 0), pady=(0, 18))
+            tk.Label(s_frame, text="Status", bg=SURFACE, fg=TEXT_PRI,
+                     font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+            s_var = tk.StringVar(value=d.get("status", "Open"))
+            ttk.Combobox(s_frame, textvariable=s_var,
+                         values=["Open", "In Progress", "Closed", "Resolved"],
+                         state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=6)
 
             tk.Label(ebody, text="Assignee", bg=SURFACE, fg=TEXT_PRI,
-                     font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(18, 5))
+                     font=("Segoe UI", 11, "bold")).grid(row=5, column=0, columnspan=2,
+                                                          sticky="w", pady=(0, 5))
             a_var = tk.StringVar(value=d.get("assignee", ""))
-            styled_entry(ebody, textvariable=a_var).pack(fill="x", ipady=7)
+            styled_entry(ebody, textvariable=a_var).grid(row=6, column=0, columnspan=2,
+                                                          sticky="ew", ipady=8, pady=(0, 24))
+
+            tk.Frame(ebody, bg=BORDER, height=1).grid(row=7, column=0, columnspan=2,
+                                                       sticky="ew", pady=(0, 18))
 
             def do_save():
                 title = t_var.get().strip()
@@ -894,13 +1145,13 @@ class DashboardWindow:
                 d["status"]      = s_var.get()
                 d["assignee"]    = a_var.get().strip()
                 save_data(APP_DATA)
-                messagebox.showinfo("Saved", f"Defect #{d['id']} updated successfully!")
+                messagebox.showinfo("Saved", f"✔  Defect #{d['id']} updated successfully!")
 
-            sb = tk.Button(ebody, text="Save Changes",
+            sb = tk.Button(ebody, text="  ✔  Save Changes",
                            bg=self._color, fg="#fff",
                            font=("Segoe UI", 12, "bold"), relief="flat", cursor="hand2",
-                           activebackground=BRAND_DARK, pady=12, command=do_save)
-            sb.pack(fill="x", pady=(26, 0))
+                           activebackground=BRAND_DARK, padx=24, pady=12, command=do_save)
+            sb.grid(row=8, column=0, sticky="w")
             sb.bind("<Enter>", lambda e: sb.config(bg=BRAND_DARK))
             sb.bind("<Leave>", lambda e: sb.config(bg=self._color))
 
@@ -913,127 +1164,186 @@ class DashboardWindow:
     def _page_view(self):
         defects = self._proj_defects()
         self._topbar("View Defects",
-                     f"{len(defects)} defect(s) in Project {self.project.upper()}")
-        scroll = scrollable_frame(self._main)
+                     f"{len(defects)} defect(s) logged in Project {self.project.upper()}")
+        scroll_outer = tk.Frame(self._main, bg=BG)
+        scroll_outer.grid(row=1, column=0, sticky="nsew")
+        scroll_outer.columnconfigure(0, weight=1)
+        scroll_outer.rowconfigure(0, weight=1)
+
+        canvas = tk.Canvas(scroll_outer, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(scroll_outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        inner = tk.Frame(canvas, bg=BG)
+        wid = canvas.create_window((0, 0), window=inner, anchor="nw")
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(wid, width=e.width))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
         if not defects:
-            tk.Label(scroll, text="No defects yet. Create one!",
-                     bg=BG, fg=TEXT_SEC,
-                     font=("Segoe UI", 13)).pack(pady=70)
+            empty = tk.Frame(inner, bg=SURFACE,
+                             highlightbackground=BORDER, highlightthickness=1)
+            empty.pack(padx=36, pady=40, fill="both", expand=True)
+            tk.Label(empty, text="📭  No Defects Yet",
+                     bg=SURFACE, fg=TEXT_PRI,
+                     font=("Segoe UI", 18, "bold")).pack(pady=(60, 8))
+            tk.Label(empty, text="No defects have been logged for this project yet.",
+                     bg=SURFACE, fg=TEXT_SEC,
+                     font=("Segoe UI", 12)).pack(pady=(0, 60))
             return
 
-        hdr = tk.Frame(scroll, bg="#e4e6ea")
-        hdr.pack(fill="x", padx=28, pady=(20, 0))
-        for txt, w in [("#", 5), ("Title", 32), ("Priority", 10),
-                       ("Status", 12), ("Assignee", 14), ("Created", 14)]:
-            tk.Label(hdr, text=txt, bg="#e4e6ea", fg=TEXT_SEC,
-                     font=("Segoe UI", 10, "bold"),
-                     width=w, anchor="w" if txt == "Title" else "center"
-                     ).pack(side="left", padx=6, pady=8)
+        # Table card
+        tcard = tk.Frame(inner, bg=SURFACE,
+                         highlightbackground=BORDER, highlightthickness=1)
+        tcard.pack(padx=36, pady=30, fill="x")
 
+        thdr_bar = tk.Frame(tcard, bg=self._color)
+        thdr_bar.pack(fill="x")
+        tk.Label(thdr_bar, text="  ☰  Defect List",
+                 bg=self._color, fg="#fff",
+                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=16, pady=10)
+
+        # Column headers
         PRI_COLOR = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
         STA_COLOR = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
 
-        for d in reversed(defects):
-            row = tk.Frame(scroll, bg=SURFACE,
+        hdr = tk.Frame(tcard, bg="#e8eaed")
+        hdr.pack(fill="x", padx=0)
+        for txt, w in [("  #", 6), ("Title", 34), ("Priority", 11),
+                       ("Status", 13), ("Assignee", 16), ("Created", 14)]:
+            tk.Label(hdr, text=txt, bg="#e8eaed", fg=TEXT_SEC,
+                     font=("Segoe UI", 10, "bold"),
+                     width=w, anchor="w" if txt == "Title" else "center"
+                     ).pack(side="left", padx=4, pady=10)
+
+        for i, d in enumerate(reversed(defects)):
+            row_bg = SURFACE if i % 2 == 0 else "#fafbfc"
+            row = tk.Frame(tcard, bg=row_bg,
                            highlightbackground=BORDER, highlightthickness=1)
-            row.pack(fill="x", padx=28, pady=4)
-            inner = tk.Frame(row, bg=SURFACE)
-            inner.pack(fill="x", padx=10, pady=9)
+            row.pack(fill="x", padx=0, pady=1)
+            inner2 = tk.Frame(row, bg=row_bg)
+            inner2.pack(fill="x", padx=4, pady=8)
 
             pri = d.get("priority", "Minor")
             sta = d.get("status",   "Open")
             pc  = PRI_COLOR.get(pri, TEXT_SEC)
             sc  = STA_COLOR.get(sta, TEXT_SEC)
 
-            tk.Label(inner, text=f"#{d.get('id','?')}",
-                     bg=SURFACE, fg=TEXT_MUT,
-                     font=("Segoe UI", 10), width=5, anchor="center").pack(side="left", padx=4)
-            tk.Label(inner, text=d.get("title", ""),
-                     bg=SURFACE, fg=TEXT_PRI,
-                     font=("Segoe UI", 11), width=32, anchor="w").pack(side="left", padx=8)
-            for val, col, w in [(pri, pc, 10), (sta, sc, 12)]:
-                tk.Label(inner, text=val,
-                         bg=col, fg="#ffffff",
+            tk.Label(inner2, text=f"#{d.get('id','?')}",
+                     bg=row_bg, fg=TEXT_MUT,
+                     font=("Segoe UI", 10), width=6, anchor="center").pack(side="left", padx=2)
+            tk.Label(inner2, text=d.get("title", ""),
+                     bg=row_bg, fg=TEXT_PRI,
+                     font=("Segoe UI", 11), width=34, anchor="w").pack(side="left", padx=6)
+            for val, col, w in [(pri, pc, 11), (sta, sc, 13)]:
+                lbl = tk.Frame(inner2, bg=col)
+                lbl.pack(side="left", padx=4)
+                tk.Label(lbl, text=val, bg=col, fg="#ffffff",
                          font=("Segoe UI", 9, "bold"),
-                         padx=8, pady=3, width=w,
-                         anchor="center").pack(side="left", padx=5)
-            tk.Label(inner, text=d.get("assignee", "—"),
-                     bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 10), width=14, anchor="center").pack(side="left", padx=5)
-            tk.Label(inner, text=d.get("created", ""),
-                     bg=SURFACE, fg=TEXT_MUT,
-                     font=("Segoe UI", 10), width=14, anchor="center").pack(side="left", padx=5)
+                         padx=8, pady=3).pack()
+            tk.Label(inner2, text=d.get("assignee", "—"),
+                     bg=row_bg, fg=TEXT_SEC,
+                     font=("Segoe UI", 10), width=16, anchor="center").pack(side="left", padx=4)
+            tk.Label(inner2, text=d.get("created", ""),
+                     bg=row_bg, fg=TEXT_MUT,
+                     font=("Segoe UI", 10), width=14, anchor="center").pack(side="left", padx=4)
 
     # ════════════════════════════════════════════════════════════════════
     #  RESULTS
     # ════════════════════════════════════════════════════════════════════
     def _page_results(self):
-        defects  = self._proj_defects()
+        defects = self._proj_defects()
         self._topbar("Results",
-                     f"Defect analytics for Project {self.project.upper()}")
-        scroll = scrollable_frame(self._main)
+                     f"Analytics & breakdown for Project {self.project.upper()}")
+        scroll_outer = tk.Frame(self._main, bg=BG)
+        scroll_outer.grid(row=1, column=0, sticky="nsew")
+        scroll_outer.columnconfigure(0, weight=1)
+        scroll_outer.rowconfigure(0, weight=1)
+
+        canvas = tk.Canvas(scroll_outer, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(scroll_outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        inner = tk.Frame(canvas, bg=BG)
+        wid = canvas.create_window((0, 0), window=inner, anchor="nw")
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(wid, width=e.width))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
         total    = len(defects)
         open_c   = sum(1 for d in defects if d.get("status") == "Open")
         prog_c   = sum(1 for d in defects if d.get("status") == "In Progress")
         closed_c = sum(1 for d in defects if d.get("status") in ("Closed", "Resolved"))
 
-        stat_row = tk.Frame(scroll, bg=BG)
-        stat_row.pack(fill="x", padx=28, pady=(24, 20))
-        for lbl, val, color in [
-            ("Total Defects", total,    TEXT_PRI),
-            ("Open",          open_c,   RED_C),
-            ("In Progress",   prog_c,   ORANGE),
-            ("Closed",        closed_c, GREEN),
-        ]:
-            sc = tk.Frame(stat_row, bg=SURFACE,
+        # ── Summary stat cards ────────────────────────────────────────
+        stats_wrap = tk.Frame(inner, bg=BG)
+        stats_wrap.pack(fill="x", padx=36, pady=(30, 0))
+        stats_wrap.columnconfigure(0, weight=1)
+        stats_wrap.columnconfigure(1, weight=1)
+        stats_wrap.columnconfigure(2, weight=1)
+        stats_wrap.columnconfigure(3, weight=1)
+
+        for col_i, (lbl, val, color, icon) in enumerate([
+            ("Total Defects", total,    TEXT_PRI, "📋"),
+            ("Open",          open_c,   RED_C,    "🔴"),
+            ("In Progress",   prog_c,   ORANGE,   "🟡"),
+            ("Closed",        closed_c, GREEN,    "🟢"),
+        ]):
+            sc = tk.Frame(stats_wrap, bg=SURFACE,
                           highlightbackground=BORDER, highlightthickness=1)
-            sc.pack(side="left", expand=True, fill="x", padx=6, ipadx=12, ipady=16)
+            sc.grid(row=0, column=col_i, padx=8, sticky="nsew")
+            tk.Frame(sc, bg=color, height=4).pack(fill="x")
+            tk.Label(sc, text=icon, bg=SURFACE,
+                     font=("Segoe UI", 22)).pack(pady=(18, 4))
             tk.Label(sc, text=str(val), bg=SURFACE, fg=color,
-                     font=("Segoe UI", 26, "bold")).pack()
+                     font=("Segoe UI", 32, "bold")).pack()
             tk.Label(sc, text=lbl, bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 10)).pack(pady=(2, 0))
+                     font=("Segoe UI", 10)).pack(pady=(4, 18))
 
-        tk.Frame(scroll, bg=BORDER, height=1).pack(fill="x", padx=28, pady=(8, 20))
+        # ── Bar charts ────────────────────────────────────────────────
+        charts_row = tk.Frame(inner, bg=BG)
+        charts_row.pack(fill="x", padx=36, pady=24)
+        charts_row.columnconfigure(0, weight=1)
+        charts_row.columnconfigure(1, weight=1)
 
-        two = tk.Frame(scroll, bg=BG)
-        two.pack(fill="x", padx=28, pady=(0, 24))
-        two.columnconfigure(0, weight=1)
-        two.columnconfigure(1, weight=1)
-
-        self._bar_card(two, 0, "Priority Breakdown", [
+        self._bar_card(charts_row, 0, "Priority Breakdown", [
             ("Critical", sum(1 for d in defects if d.get("priority") == "Critical"), RED_C),
             ("Major",    sum(1 for d in defects if d.get("priority") == "Major"),    ORANGE),
             ("Minor",    sum(1 for d in defects if d.get("priority") == "Minor"),    BLUE),
             ("Low",      sum(1 for d in defects if d.get("priority") == "Low"),      GREEN),
         ], total or 1)
 
-        self._bar_card(two, 1, "Status Breakdown", [
+        self._bar_card(charts_row, 1, "Status Breakdown", [
             ("Open",        open_c,   RED_C),
             ("In Progress", prog_c,   ORANGE),
             ("Closed",      sum(1 for d in defects if d.get("status") == "Closed"),   GREEN),
             ("Resolved",    sum(1 for d in defects if d.get("status") == "Resolved"), BLUE),
         ], total or 1)
 
-        tk.Frame(scroll, bg=BORDER, height=1).pack(fill="x", padx=28, pady=(0, 20))
-
-        tbl_card = tk.Frame(scroll, bg=SURFACE,
+        # ── Full defect table ─────────────────────────────────────────
+        tbl_card = tk.Frame(inner, bg=SURFACE,
                             highlightbackground=BORDER, highlightthickness=1)
-        tbl_card.pack(fill="x", padx=28, pady=(0, 28))
+        tbl_card.pack(fill="x", padx=36, pady=(0, 36))
+        tk.Frame(tbl_card, bg=self._color, height=4).pack(fill="x")
         tk.Label(tbl_card, text="All Defects",
                  bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=22, pady=(16, 8))
 
         cols = ("ID", "Title", "Priority", "Status", "Assignee", "Created")
         style = ttk.Style()
-        style.configure("Treeview",         font=("Segoe UI", 10), rowheight=32)
+        style.configure("Treeview",         font=("Segoe UI", 10), rowheight=34)
         style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
         style.map("Treeview", background=[("selected", self._color)])
 
         tree = ttk.Treeview(tbl_card, columns=cols,
-                             show="headings", height=min(len(defects), 12))
-        for col, w in zip(cols, [50, 260, 90, 110, 120, 110]):
+                             show="headings", height=min(max(len(defects), 1), 14))
+        for col, w in zip(cols, [55, 280, 95, 115, 130, 115]):
             tree.heading(col, text=col)
             tree.column(col, width=w, anchor="w" if col == "Title" else "center")
         tree.pack(fill="x", padx=20, pady=(0, 20))
@@ -1052,28 +1362,29 @@ class DashboardWindow:
         card = tk.Frame(parent, bg=SURFACE,
                         highlightbackground=BORDER, highlightthickness=1)
         card.grid(row=0, column=col,
-                  padx=(0, 0) if col == 0 else (14, 0), sticky="nsew")
+                  padx=(0, 12) if col == 0 else (12, 0), sticky="nsew")
+        tk.Frame(card, bg=self._color, height=4).pack(fill="x")
         body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=22, pady=20, fill="x")
+        body.pack(padx=24, pady=22, fill="x")
         tk.Label(body, text=title, bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(0, 14))
+                 font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(0, 16))
         for lbl, count, color in items:
             row = tk.Frame(body, bg=SURFACE)
-            row.pack(fill="x", pady=5)
+            row.pack(fill="x", pady=6)
             tk.Label(row, text=lbl, bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 10), width=12, anchor="w").pack(side="left")
-            track = tk.Frame(row, bg="#f0f2f5", height=12)
+                     font=("Segoe UI", 10), width=13, anchor="w").pack(side="left")
+            track = tk.Frame(row, bg="#f0f2f5", height=14)
             track.pack(side="left", fill="x", expand=True, padx=(8, 8))
             track.pack_propagate(False)
-            if count / total > 0:
-                fill_f = tk.Frame(track, bg=color, height=12)
-                fill_f.place(relx=0, rely=0, relwidth=count / total, relheight=1)
+            ratio = count / total
+            if ratio > 0:
+                fill_f = tk.Frame(track, bg=color, height=14)
+                fill_f.place(relx=0, rely=0, relwidth=ratio, relheight=1)
             tk.Label(row, text=str(count), bg=SURFACE, fg=color,
                      font=("Segoe UI", 10, "bold"),
-                     width=3, anchor="e").pack(side="right")
+                     width=4, anchor="e").pack(side="right")
 
     def _go_back(self):
-        # FIX: use after() — no nested mainloop
         self.root.after(0, lambda: switch_to(ProjectPage))
 
     def _logout(self):
