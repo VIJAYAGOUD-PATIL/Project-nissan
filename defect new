@@ -31,13 +31,12 @@ PURPLE     = "#7c3aed"
 
 DATA_FILE = "defects.json"
 
-# Icon bg colours (solid, no alpha) matching each project colour
 ICON_BG = {
-    BRAND:  "#f5e6ea",
-    BLUE:   "#e8effe",
-    PURPLE: "#ede8fd",
-    GREEN:  "#e6f4ec",
-    ORANGE: "#fdf3e3",
+    BRAND:     "#f5e6ea",
+    BLUE:      "#e8effe",
+    PURPLE:    "#ede8fd",
+    GREEN:     "#e6f4ec",
+    ORANGE:    "#fdf3e3",
     "#0891b2": "#e0f4f8",
 }
 
@@ -134,8 +133,25 @@ def scrollable_frame(parent):
 
 
 def icon_bg(color):
-    """Return a solid light background tint for a given accent colour."""
     return ICON_BG.get(color, "#f0f2f5")
+
+
+# ── Single persistent root window ─────────────────────────────────────────────
+_ROOT = None
+
+def get_root():
+    global _ROOT
+    if _ROOT is None:
+        _ROOT = tk.Tk()
+    return _ROOT
+
+def switch_to(page_class, *args):
+    """Destroy all widgets in root and rebuild with a new page class."""
+    root = get_root()
+    for w in root.winfo_children():
+        w.destroy()
+    root.configure(bg=BG)
+    page_class(root, *args)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -252,10 +268,8 @@ class LoginWindow:
         u = self._user_var.get().strip()
         p = self._pwd_var.get().strip()
         if u == USERNAME and p == PASSWORD:
-            self.root.destroy()
-            r = tk.Tk()
-            ProjectPage(r)
-            r.mainloop()
+            # FIX: use after() to avoid nested mainloop — safe page transition
+            self.root.after(0, lambda: switch_to(ProjectPage))
         else:
             self._err_lbl.config(text="✗  Invalid username or password")
             self._user_var.set("")
@@ -277,8 +291,8 @@ class ProjectPage:
     def _build(self):
         root = self.root
         root.columnconfigure(0, weight=1)
-        root.rowconfigure(0, weight=0)   # navbar fixed
-        root.rowconfigure(1, weight=1)   # body expands
+        root.rowconfigure(0, weight=0)
+        root.rowconfigure(1, weight=1)
 
         # ── Top navbar ─────────────────────────────────────────────────
         nav = tk.Frame(root, bg=SIDEBAR_BG, height=62)
@@ -344,7 +358,6 @@ class ProjectPage:
         for w in self._body.winfo_children():
             w.destroy()
 
-        # Header
         hdr = tk.Frame(self._body, bg=BG)
         hdr.pack(pady=(50, 8))
         tk.Label(hdr, text="Select a Project",
@@ -354,7 +367,6 @@ class ProjectPage:
                  bg=BG, fg=TEXT_SEC,
                  font=("Segoe UI", 13)).pack(pady=(6, 0))
 
-        # Divider
         div = tk.Frame(self._body, bg=BG)
         div.pack(pady=(28, 0))
         tk.Frame(div, bg=BORDER, height=1, width=120).pack(side="left", pady=8)
@@ -363,18 +375,16 @@ class ProjectPage:
                  font=("Segoe UI", 10)).pack(side="left")
         tk.Frame(div, bg=BORDER, height=1, width=120).pack(side="left", pady=8)
 
-        # Cards container — uses grid so cards wrap responsively
         cards_frame = tk.Frame(self._body, bg=BG)
         cards_frame.pack(pady=24, padx=40)
 
         all_projects = list(APP_DATA["projects"])
-        cols = 4  # max 4 per row
+        cols = 4
         for i, proj in enumerate(all_projects):
             row_i = i // cols
             col_i = i % cols
             self._project_card(cards_frame, proj, row_i, col_i)
 
-        # Add card in next slot
         total = len(all_projects)
         add_row = total // cols
         add_col = total % cols
@@ -389,26 +399,24 @@ class ProjectPage:
         proj_defects = [d for d in APP_DATA["defects"] if d.get("project") == name]
         open_c = sum(1 for d in proj_defects if d.get("status") == "Open")
 
+        # FIX: removed pack_propagate(False) and redundant card.config(width=220)
+        # so the card sizes naturally from its child widgets and is fully visible
         card = tk.Frame(parent, bg=SURFACE,
                         highlightbackground=BORDER,
                         highlightthickness=1,
-                        cursor="hand2", width=220)
+                        cursor="hand2")
         card.grid(row=row_i, column=col_i, padx=14, pady=14, sticky="n")
-        card.pack_propagate(False)
-        card.config(width=220)
 
-        # Colour accent bar
         tk.Frame(card, bg=color, height=5).pack(fill="x")
 
         body = tk.Frame(card, bg=SURFACE)
         body.pack(padx=22, pady=22, fill="x")
 
-        # Icon circle (solid tint — no alpha)
-        ic_bg = icon_bg(color)
+        ic_bg_color = icon_bg(color)
         ic = tk.Canvas(body, width=50, height=50,
                         bg=SURFACE, highlightthickness=0)
         ic.pack(anchor="w", pady=(0, 12))
-        ic.create_oval(2, 2, 48, 48, fill=ic_bg, outline=color, width=1)
+        ic.create_oval(2, 2, 48, 48, fill=ic_bg_color, outline=color, width=1)
         ic.create_text(25, 25, text=icon, fill=color, font=("Segoe UI", 18))
 
         tk.Label(body, text=f"Project  {name.upper()}",
@@ -446,13 +454,12 @@ class ProjectPage:
 
     def _add_card(self, parent, row_i, col_i):
         DASH = "#c8cdd4"
+        # FIX: removed pack_propagate(False) and redundant card.config(width=220)
         card = tk.Frame(parent, bg=SURFACE,
                         highlightbackground=DASH,
                         highlightthickness=1,
-                        cursor="hand2", width=220)
+                        cursor="hand2")
         card.grid(row=row_i, column=col_i, padx=14, pady=14, sticky="n")
-        card.pack_propagate(False)
-        card.config(width=220)
 
         tk.Frame(card, bg=DASH, height=5).pack(fill="x")
 
@@ -588,17 +595,12 @@ class ProjectPage:
                   command=dlg.destroy).pack(side="left", padx=10)
 
     def _open_project(self, project_name):
-        self.root.destroy()
-        r = tk.Tk()
-        DashboardWindow(r, project_name)
-        r.mainloop()
+        # FIX: use after() — no nested mainloop
+        self.root.after(0, lambda: switch_to(DashboardWindow, project_name))
 
     def _logout(self):
         if messagebox.askyesno("Logout", "Are you sure you want to logout?"):
-            self.root.destroy()
-            r = tk.Tk()
-            LoginWindow(r)
-            r.mainloop()
+            self.root.after(0, lambda: switch_to(LoginWindow))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -624,7 +626,6 @@ class DashboardWindow:
         root.rowconfigure(0, weight=0)
         root.rowconfigure(1, weight=1)
 
-        # Navbar
         nav = tk.Frame(root, bg=SIDEBAR_BG, height=62)
         nav.grid(row=0, column=0, sticky="ew")
         nav.pack_propagate(False)
@@ -650,13 +651,11 @@ class DashboardWindow:
                   font=("Segoe UI", 10), relief="flat", cursor="hand2",
                   padx=14, pady=5, command=self._go_back).pack(side="right")
 
-        # Main split
         main_frame = tk.Frame(root, bg=BG)
         main_frame.grid(row=1, column=0, sticky="nsew")
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(0, weight=1)
 
-        # Sidebar
         sidebar = tk.Frame(main_frame, bg=SIDEBAR_BG, width=210)
         sidebar.grid(row=0, column=0, sticky="nsew")
         sidebar.pack_propagate(False)
@@ -685,7 +684,6 @@ class DashboardWindow:
                                     font=("Segoe UI", 10))
         self._count_lbl.pack(anchor="w", padx=8)
 
-        # Content area
         self._main = tk.Frame(main_frame, bg=BG)
         self._main.grid(row=0, column=1, sticky="nsew")
         self._main.columnconfigure(0, weight=1)
@@ -1075,21 +1073,19 @@ class DashboardWindow:
                      width=3, anchor="e").pack(side="right")
 
     def _go_back(self):
-        self.root.destroy()
-        r = tk.Tk()
-        ProjectPage(r)
-        r.mainloop()
+        # FIX: use after() — no nested mainloop
+        self.root.after(0, lambda: switch_to(ProjectPage))
 
     def _logout(self):
         if messagebox.askyesno("Logout", "Are you sure you want to logout?"):
-            self.root.destroy()
-            r = tk.Tk()
-            LoginWindow(r)
-            r.mainloop()
+            self.root.after(0, lambda: switch_to(LoginWindow))
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    root = tk.Tk()
-    LoginWindow(root)
-    root.mainloop()
+    try:
+        root = get_root()
+        LoginWindow(root)
+        root.mainloop()
+    except KeyboardInterrupt:
+        pass
