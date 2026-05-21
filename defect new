@@ -372,25 +372,24 @@ class ProjectPage:
                  bg=BG, fg=TEXT_MUT,
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=40, pady=(14, 0))
 
-        # Cards grid
-        cards_frame = tk.Frame(self._body, bg=BG)
-        cards_frame.pack(pady=(16, 40), padx=30, fill="x")
-
-        all_projects = list(APP_DATA["projects"])
+        # Cards — packed in rows of 4, no empty grid columns
         cols = 4
-        # All items = project cards + one "Add New Project" card
+        all_projects = list(APP_DATA["projects"])
         all_items = list(all_projects) + ["__add__"]
-        num_cols = min(len(all_items), cols)
-        for c in range(num_cols):
-            cards_frame.columnconfigure(c, weight=1)
 
-        for i, item in enumerate(all_items):
-            row_i = i // cols
-            col_i = i % cols
-            if item == "__add__":
-                self._add_card(cards_frame, row_i, col_i)
-            else:
-                self._project_card(cards_frame, item, row_i, col_i)
+        # Build rows as horizontal frames so only used columns appear
+        for row_start in range(0, len(all_items), cols):
+            row_items = all_items[row_start:row_start + cols]
+            row_frame = tk.Frame(self._body, bg=BG)
+            row_frame.pack(pady=(16, 0), padx=30, fill="x")
+            for col_i, item in enumerate(row_items):
+                row_frame.columnconfigure(col_i, weight=1)
+                if item == "__add__":
+                    self._add_card(row_frame, 0, col_i)
+                else:
+                    self._project_card(row_frame, item, 0, col_i)
+
+        tk.Frame(self._body, bg=BG, height=40).pack()  # bottom spacing
 
     def _project_card(self, parent, proj, row_i, col_i):
         name  = proj["name"]
@@ -736,11 +735,13 @@ class DashboardWindow:
     # ════════════════════════════════════════════════════════════════════
     #  CREATE DEFECT  — single prominent card, fills page
     # ════════════════════════════════════════════════════════════════════
+    # ════════════════════════════════════════════════════════════════════
+    #  CREATE DEFECT  — single card with project name + button
+    # ════════════════════════════════════════════════════════════════════
     def _page_create(self):
         self._topbar("Create Defect",
                      f"Log a new defect in Project {self.project.upper()}")
 
-        # Scrollable area fills remaining space
         scroll_outer = tk.Frame(self._main, bg=BG)
         scroll_outer.grid(row=1, column=0, sticky="nsew")
         scroll_outer.columnconfigure(0, weight=1)
@@ -760,246 +761,160 @@ class DashboardWindow:
         canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
         canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
-
-        # ── Project info card (internal tracker + project name) ──────────────
+        # ── Single project + create defect card ───────────────────────
         proj_meta = next((p for p in APP_DATA["projects"] if p["name"] == self.project), {})
-        ic_bg_c = icon_bg(self._color)
-        info_card = tk.Frame(inner, bg=SURFACE,
-                             highlightbackground=self._color, highlightthickness=2)
-        info_card.pack(padx=36, pady=(30, 0), fill="x")
-        tk.Frame(info_card, bg=self._color, height=5).pack(fill="x")
-        info_body = tk.Frame(info_card, bg=SURFACE)
-        info_body.pack(fill="x", padx=24, pady=16)
+        ic_bg_c   = icon_bg(self._color)
 
-        ic_c = tk.Canvas(info_body, width=44, height=44, bg=SURFACE, highlightthickness=0)
-        ic_c.pack(side="left", padx=(0, 16))
-        ic_c.create_oval(2, 2, 42, 42, fill=ic_bg_c, outline=self._color, width=1)
-        ic_c.create_text(22, 22, text=proj_meta.get("icon", "◈"),
-                         fill=self._color, font=("Segoe UI", 18))
-
-        txt_f = tk.Frame(info_body, bg=SURFACE)
-        txt_f.pack(side="left", fill="x", expand=True)
-        tk.Label(txt_f, text=f"Internal Tracker  —  Project {self.project.upper()}",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 13, "bold")).pack(anchor="w")
-        tk.Label(txt_f, text="Defect Tracking & Analytics",
-                 bg=SURFACE, fg=TEXT_SEC,
-                 font=("Segoe UI", 10)).pack(anchor="w", pady=(2, 0))
-
-        _pd_now = [d for d in APP_DATA["defects"] if d.get("project") == self.project]
-        _op_now = sum(1 for d in _pd_now if d.get("status") == "Open")
-        badge_f = tk.Frame(info_body, bg=SURFACE)
-        badge_f.pack(side="right", padx=(0, 8))
-        _pill = tk.Frame(badge_f, bg=self._color)
-        _pill.pack(anchor="e")
-        tk.Label(_pill, text=f"{len(_pd_now)} defects  •  {_op_now} open",
-                 bg=self._color, fg="#ffffff",
-                 font=("Segoe UI", 10, "bold"),
-                 padx=12, pady=5).pack()
-
-        # ── The Create Defect card ─────────────────────────────────────
         card = tk.Frame(inner, bg=SURFACE,
-                        highlightbackground=BORDER, highlightthickness=1)
-        card.pack(padx=36, pady=(16, 30), fill="x")
+                        highlightbackground=self._color, highlightthickness=2)
+        card.pack(padx=60, pady=50, fill="x")
 
-        # Card header strip
-        card_hdr = tk.Frame(card, bg=self._color)
-        card_hdr.pack(fill="x")
-        tk.Label(card_hdr, text="  ✚  New Defect Report",
-                 bg=self._color, fg="#ffffff",
-                 font=("Segoe UI", 13, "bold")).pack(side="left", padx=16, pady=12)
+        # Coloured top bar
+        tk.Frame(card, bg=self._color, height=6).pack(fill="x")
 
         body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=32, pady=28, fill="x")
+        body.pack(padx=36, pady=36, fill="x")
+
+        # ── Icon + project name row ────────────────────────────────────
+        top_row = tk.Frame(body, bg=SURFACE)
+        top_row.pack(fill="x", pady=(0, 20))
+
+        ic_c = tk.Canvas(top_row, width=54, height=54, bg=SURFACE, highlightthickness=0)
+        ic_c.pack(side="left", padx=(0, 18))
+        ic_c.create_oval(2, 2, 52, 52, fill=ic_bg_c, outline=self._color, width=2)
+        ic_c.create_text(27, 27, text=proj_meta.get("icon", "\u25c8"),
+                         fill=self._color, font=("Segoe UI", 22))
+
+        name_f = tk.Frame(top_row, bg=SURFACE)
+        name_f.pack(side="left", fill="x", expand=True)
+        tk.Label(name_f,
+                 text=f"Project  {self.project.upper()}",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 18, "bold")).pack(anchor="w")
+        tk.Label(name_f,
+                 text="Internal Tracker  \u2014  Defect Tracking & Analytics",
+                 bg=SURFACE, fg=TEXT_SEC,
+                 font=("Segoe UI", 11)).pack(anchor="w", pady=(4, 0))
+
+        # Defect count badge
+        _pd = [d for d in APP_DATA["defects"] if d.get("project") == self.project]
+        _op = sum(1 for d in _pd if d.get("status") == "Open")
+        badge_outer = tk.Frame(top_row, bg=SURFACE)
+        badge_outer.pack(side="right")
+        badge_pill = tk.Frame(badge_outer, bg=self._color)
+        badge_pill.pack()
+        tk.Label(badge_pill,
+                 text=f"{len(_pd)} defects  \u2022  {_op} open",
+                 bg=self._color, fg="#ffffff",
+                 font=("Segoe UI", 10, "bold"),
+                 padx=14, pady=6).pack()
+
+        # ── Divider ────────────────────────────────────────────────────
+        tk.Frame(body, bg=BORDER, height=1).pack(fill="x", pady=(0, 28))
+
+        # ── Create Defect button ───────────────────────────────────────
+        btn = tk.Button(body,
+                        text="  \u271a  Create Defect",
+                        bg=self._color, fg="#ffffff",
+                        font=("Segoe UI", 14, "bold"),
+                        relief="flat", cursor="hand2",
+                        activebackground=BRAND_DARK,
+                        padx=32, pady=16,
+                        command=self._show_create_dialog)
+        btn.pack(anchor="center")
+        btn.bind("<Enter>", lambda e: btn.config(bg=BRAND_DARK))
+        btn.bind("<Leave>", lambda e: btn.config(bg=self._color))
+
+    def _show_create_dialog(self):
+        dlg = tk.Toplevel(self.root)
+        dlg.title(f"New Defect — Project {self.project.upper()}")
+        dlg.configure(bg=SURFACE)
+        dlg.resizable(False, False)
+        dlg.geometry("560x640")
+        dlg.grab_set()
+        dlg.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width()  - 560) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 640) // 2
+        dlg.geometry(f"560x640+{x}+{y}")
+
+        tk.Frame(dlg, bg=self._color, height=5).pack(fill="x")
+        body = tk.Frame(dlg, bg=SURFACE)
+        body.pack(padx=32, pady=24, fill="both", expand=True)
         body.columnconfigure(0, weight=1)
         body.columnconfigure(1, weight=1)
 
-        # ── Row 1: Title (full width) ──────────────────────────────────
+        tk.Label(body, text="\u271a  New Defect Report",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 15, "bold")).grid(row=0, column=0, columnspan=2,
+                                                      sticky="w", pady=(0, 4))
+        tk.Label(body, text=f"Project {self.project.upper()}",
+                 bg=SURFACE, fg=self._color,
+                 font=("Segoe UI", 10, "bold")).grid(row=1, column=0, columnspan=2,
+                                                      sticky="w", pady=(0, 18))
+
+        # Title
         tk.Label(body, text="Defect Title *",
                  bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).grid(row=0, column=0, columnspan=2,
-                                                       sticky="w", pady=(0, 5))
+                 font=("Segoe UI", 11, "bold")).grid(row=2, column=0, columnspan=2,
+                                                      sticky="w", pady=(0, 5))
         title_var = tk.StringVar()
-        title_e = styled_entry(body, textvariable=title_var, width=80)
-        title_e.grid(row=1, column=0, columnspan=2, sticky="ew", ipady=8, pady=(0, 20))
+        styled_entry(body, textvariable=title_var, width=60).grid(
+            row=3, column=0, columnspan=2, sticky="ew", ipady=8, pady=(0, 14))
 
-        # ── Row 2: Description (full width) ───────────────────────────
+        # Description
         tk.Label(body, text="Description",
                  bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).grid(row=2, column=0, columnspan=2,
-                                                       sticky="w", pady=(0, 5))
-        desc_box = tk.Text(body, height=5, bg="#f9fafb", fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).grid(row=4, column=0, columnspan=2,
+                                                      sticky="w", pady=(0, 5))
+        desc_box = tk.Text(body, height=4, bg="#f9fafb", fg=TEXT_PRI,
                            font=("Segoe UI", 11), relief="flat",
                            highlightbackground=BORDER, highlightthickness=1)
-        desc_box.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 20))
+        desc_box.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(0, 14))
 
-        # ── Row 3: Priority | Status ───────────────────────────────────
-        pri_frame = tk.Frame(body, bg=SURFACE)
-        pri_frame.grid(row=4, column=0, sticky="ew", padx=(0, 12), pady=(0, 20))
-        tk.Label(pri_frame, text="Priority",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        # Priority | Status
+        pf = tk.Frame(body, bg=SURFACE)
+        pf.grid(row=6, column=0, sticky="ew", padx=(0, 8), pady=(0, 14))
+        tk.Label(pf, text="Priority", bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 4))
         pri_var = tk.StringVar(value="Minor")
-        pri_cb = ttk.Combobox(pri_frame, textvariable=pri_var,
-                               values=["Critical", "Major", "Minor", "Low"],
-                               state="readonly", font=("Segoe UI", 11))
-        pri_cb.pack(fill="x", ipady=6)
+        ttk.Combobox(pf, textvariable=pri_var,
+                     values=["Critical", "Major", "Minor", "Low"],
+                     state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=5)
 
-        sta_frame = tk.Frame(body, bg=SURFACE)
-        sta_frame.grid(row=4, column=1, sticky="ew", padx=(12, 0), pady=(0, 20))
-        tk.Label(sta_frame, text="Status",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        sf = tk.Frame(body, bg=SURFACE)
+        sf.grid(row=6, column=1, sticky="ew", padx=(8, 0), pady=(0, 14))
+        tk.Label(sf, text="Status", bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 4))
         sta_var = tk.StringVar(value="Open")
-        sta_cb = ttk.Combobox(sta_frame, textvariable=sta_var,
-                               values=["Open", "In Progress", "Closed", "Resolved"],
-                               state="readonly", font=("Segoe UI", 11))
-        sta_cb.pack(fill="x", ipady=6)
+        ttk.Combobox(sf, textvariable=sta_var,
+                     values=["Open", "In Progress", "Closed", "Resolved"],
+                     state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=5)
 
-        # ── Row 4: Assignee | Severity ─────────────────────────────────
-        asgn_frame = tk.Frame(body, bg=SURFACE)
-        asgn_frame.grid(row=5, column=0, sticky="ew", padx=(0, 12), pady=(0, 20))
-        tk.Label(asgn_frame, text="Assignee",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        # Assignee | Severity
+        af = tk.Frame(body, bg=SURFACE)
+        af.grid(row=7, column=0, sticky="ew", padx=(0, 8), pady=(0, 14))
+        tk.Label(af, text="Assignee", bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 4))
         assign_var = tk.StringVar()
-        styled_entry(asgn_frame, textvariable=assign_var).pack(fill="x", ipady=8)
+        styled_entry(af, textvariable=assign_var).pack(fill="x", ipady=7)
 
-        sev_frame = tk.Frame(body, bg=SURFACE)
-        sev_frame.grid(row=5, column=1, sticky="ew", padx=(12, 0), pady=(0, 20))
-        tk.Label(sev_frame, text="Severity",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        svf = tk.Frame(body, bg=SURFACE)
+        svf.grid(row=7, column=1, sticky="ew", padx=(8, 0), pady=(0, 14))
+        tk.Label(svf, text="Severity", bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 4))
         sev_var = tk.StringVar(value="Medium")
-        sev_cb = ttk.Combobox(sev_frame, textvariable=sev_var,
-                               values=["Low", "Medium", "High", "Blocker"],
-                               state="readonly", font=("Segoe UI", 11))
-        sev_cb.pack(fill="x", ipady=6)
+        ttk.Combobox(svf, textvariable=sev_var,
+                     values=["Low", "Medium", "High", "Blocker"],
+                     state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=5)
 
-        # ── Row 5: Steps to reproduce (full width) ─────────────────────
-        tk.Label(body, text="Steps to Reproduce",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 11, "bold")).grid(row=6, column=0, columnspan=2,
-                                                       sticky="w", pady=(0, 5))
-        steps_box = tk.Text(body, height=4, bg="#f9fafb", fg=TEXT_PRI,
-                            font=("Segoe UI", 11), relief="flat",
-                            highlightbackground=BORDER, highlightthickness=1)
-        steps_box.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(0, 28))
-
-        # ── Divider + Submit button ────────────────────────────────────
+        # Divider
         tk.Frame(body, bg=BORDER, height=1).grid(row=8, column=0, columnspan=2,
-                                                   sticky="ew", pady=(0, 20))
-
-        btn_row = tk.Frame(body, bg=SURFACE)
-        btn_row.grid(row=9, column=0, columnspan=2, sticky="ew")
-
-        # Container for the success card (placed after the form card)
-        success_frame = tk.Frame(inner, bg=BG)
-        success_frame.pack(fill="x", padx=36, pady=(0, 30))
-
-        def _show_created_card(defect):
-            """Render an inline success card showing the newly created defect."""
-            for w in success_frame.winfo_children():
-                w.destroy()
-
-            PRI_COLOR = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
-            STA_COLOR = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
-
-            sc = tk.Frame(success_frame, bg=SURFACE,
-                          highlightbackground=GREEN, highlightthickness=2)
-            sc.pack(fill="x")
-
-            # Green success header
-            shdr = tk.Frame(sc, bg=GREEN)
-            shdr.pack(fill="x")
-            tk.Label(shdr, text=f"  ✔  Defect #{defect['id']} Created Successfully!",
-                     bg=GREEN, fg="#ffffff",
-                     font=("Segoe UI", 13, "bold")).pack(side="left", padx=16, pady=12)
-
-            sbody = tk.Frame(sc, bg=SURFACE)
-            sbody.pack(padx=32, pady=22, fill="x")
-            sbody.columnconfigure(0, weight=1)
-            sbody.columnconfigure(1, weight=1)
-
-            # Title
-            tk.Label(sbody, text="Title",
-                     bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w")
-            tk.Label(sbody, text=defect.get("title", ""),
-                     bg=SURFACE, fg=TEXT_PRI,
-                     font=("Segoe UI", 13, "bold")).grid(row=1, column=0, columnspan=2,
-                                                          sticky="w", pady=(2, 14))
-
-            # Description
-            desc_text = defect.get("description", "")
-            if desc_text:
-                tk.Label(sbody, text="Description",
-                         bg=SURFACE, fg=TEXT_SEC,
-                         font=("Segoe UI", 9, "bold")).grid(row=2, column=0, columnspan=2, sticky="w")
-                tk.Label(sbody, text=desc_text,
-                         bg=SURFACE, fg=TEXT_SEC,
-                         font=("Segoe UI", 11), wraplength=700, justify="left"
-                         ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(2, 14))
-
-            # Badges row
-            badge_row = tk.Frame(sbody, bg=SURFACE)
-            badge_row.grid(row=4, column=0, columnspan=2, sticky="w", pady=(0, 14))
-
-            pri = defect.get("priority", "Minor")
-            sta = defect.get("status", "Open")
-            sev = defect.get("severity", "Medium")
-            for label, val, color in [
-                ("Priority", pri, PRI_COLOR.get(pri, TEXT_SEC)),
-                ("Status",   sta, STA_COLOR.get(sta, TEXT_SEC)),
-                ("Severity", sev, PURPLE),
-            ]:
-                grp = tk.Frame(badge_row, bg=SURFACE)
-                grp.pack(side="left", padx=(0, 18))
-                tk.Label(grp, text=label,
-                         bg=SURFACE, fg=TEXT_MUT,
-                         font=("Segoe UI", 8, "bold")).pack(anchor="w")
-                pill = tk.Frame(grp, bg=color)
-                pill.pack(anchor="w", pady=(3, 0))
-                tk.Label(pill, text=val, bg=color, fg="#fff",
-                         font=("Segoe UI", 9, "bold"),
-                         padx=10, pady=4).pack()
-
-            # Meta info
-            meta_row = tk.Frame(sbody, bg=SURFACE)
-            meta_row.grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, 8))
-
-            for label, val in [
-                ("Assignee", defect.get("assignee") or "—"),
-                ("Project",  defect.get("project", "").upper()),
-                ("Created",  defect.get("created", "")),
-                ("ID",       f"#{defect.get('id', '')}"),
-            ]:
-                grp = tk.Frame(meta_row, bg=SURFACE)
-                grp.pack(side="left", padx=(0, 28))
-                tk.Label(grp, text=label,
-                         bg=SURFACE, fg=TEXT_MUT,
-                         font=("Segoe UI", 8, "bold")).pack(anchor="w")
-                tk.Label(grp, text=val,
-                         bg=SURFACE, fg=TEXT_PRI,
-                         font=("Segoe UI", 11)).pack(anchor="w", pady=(2, 0))
-
-            # Steps to reproduce
-            steps_text = defect.get("steps", "")
-            if steps_text:
-                tk.Frame(sbody, bg=BORDER, height=1).grid(row=6, column=0, columnspan=2,
-                                                            sticky="ew", pady=(8, 12))
-                tk.Label(sbody, text="Steps to Reproduce",
-                         bg=SURFACE, fg=TEXT_SEC,
-                         font=("Segoe UI", 9, "bold")).grid(row=7, column=0, columnspan=2, sticky="w")
-                tk.Label(sbody, text=steps_text,
-                         bg=SURFACE, fg=TEXT_SEC,
-                         font=("Segoe UI", 10), wraplength=700, justify="left"
-                         ).grid(row=8, column=0, columnspan=2, sticky="w", pady=(4, 0))
+                                                   sticky="ew", pady=(8, 16))
 
         def do_create():
             t = title_var.get().strip()
             if not t:
-                messagebox.showerror("Validation", "Defect title is required.")
+                messagebox.showerror("Validation", "Defect title is required.", parent=dlg)
                 return
             new_id = max((d.get("id", 0) for d in APP_DATA["defects"]), default=0) + 1
             new_defect = {
@@ -1011,50 +926,34 @@ class DashboardWindow:
                 "status":      sta_var.get(),
                 "assignee":    assign_var.get().strip(),
                 "severity":    sev_var.get(),
-                "steps":       steps_box.get("1.0", "end").strip(),
+                "steps":       "",
                 "created":     datetime.date.today().strftime("%d %b %Y"),
             }
             APP_DATA["defects"].append(new_defect)
             save_data(APP_DATA)
             self._count_lbl.config(text=f"{len(self._proj_defects())} defect(s)")
-            _show_created_card(new_defect)
-            # Reset form
-            title_var.set("")
-            desc_box.delete("1.0", "end")
-            assign_var.set("")
-            steps_box.delete("1.0", "end")
-            pri_var.set("Minor")
-            sta_var.set("Open")
-            sev_var.set("Medium")
+            dlg.destroy()
+            messagebox.showinfo("Created", f"\u2714  Defect #{new_id} created successfully!")
 
-        submit_btn = tk.Button(btn_row, text="  ✚  Create Defect",
-                               bg=self._color, fg="#fff",
-                               font=("Segoe UI", 13, "bold"),
-                               relief="flat", cursor="hand2",
-                               activebackground=BRAND_DARK,
-                               padx=28, pady=14,
-                               command=do_create)
-        submit_btn.pack(side="left")
-        submit_btn.bind("<Enter>", lambda e: submit_btn.config(bg=BRAND_DARK))
-        submit_btn.bind("<Leave>", lambda e: submit_btn.config(bg=self._color))
+        btn_row = tk.Frame(body, bg=SURFACE)
+        btn_row.grid(row=9, column=0, columnspan=2, sticky="ew")
 
-        reset_btn = tk.Button(btn_row, text="Reset",
-                              bg="#f0f2f5", fg=TEXT_SEC,
-                              font=("Segoe UI", 12), relief="flat", cursor="hand2",
-                              padx=20, pady=14,
-                              command=lambda: [
-                                  title_var.set(""),
-                                  desc_box.delete("1.0", "end"),
-                                  assign_var.set(""),
-                                  steps_box.delete("1.0", "end"),
-                                  pri_var.set("Minor"),
-                                  sta_var.set("Open"),
-                                  sev_var.set("Medium"),
-                              ])
-        reset_btn.pack(side="left", padx=14)
+        sub = tk.Button(btn_row, text="  \u271a  Create Defect",
+                        bg=self._color, fg="#fff",
+                        font=("Segoe UI", 12, "bold"),
+                        relief="flat", cursor="hand2",
+                        activebackground=BRAND_DARK,
+                        padx=22, pady=11, command=do_create)
+        sub.pack(side="left")
+        sub.bind("<Enter>", lambda e: sub.config(bg=BRAND_DARK))
+        sub.bind("<Leave>", lambda e: sub.config(bg=self._color))
 
-    # ════════════════════════════════════════════════════════════════════
-    #  MODIFY DEFECT
+        tk.Button(btn_row, text="Cancel",
+                  bg="#f0f2f5", fg=TEXT_SEC,
+                  font=("Segoe UI", 11), relief="flat", cursor="hand2",
+                  padx=18, pady=11,
+                  command=dlg.destroy).pack(side="left", padx=12)
+
     # ════════════════════════════════════════════════════════════════════
     def _page_modify(self):
         self._topbar("Modify Defect",
