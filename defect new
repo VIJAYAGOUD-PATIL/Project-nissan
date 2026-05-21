@@ -31,7 +31,16 @@ PURPLE     = "#7c3aed"
 
 DATA_FILE = "defects.json"
 
-# ── Default projects with metadata ────────────────────────────────────────────
+# Icon bg colours (solid, no alpha) matching each project colour
+ICON_BG = {
+    BRAND:  "#f5e6ea",
+    BLUE:   "#e8effe",
+    PURPLE: "#ede8fd",
+    GREEN:  "#e6f4ec",
+    ORANGE: "#fdf3e3",
+    "#0891b2": "#e0f4f8",
+}
+
 DEFAULT_PROJECTS = [
     {"name": "aa", "color": BRAND,  "icon": "◈", "desc": "Product QA\n& bug tracking"},
     {"name": "bb", "color": BLUE,   "icon": "◉", "desc": "Backend services\n& defect mgmt"},
@@ -124,6 +133,11 @@ def scrollable_frame(parent):
     return inner
 
 
+def icon_bg(color):
+    """Return a solid light background tint for a given accent colour."""
+    return ICON_BG.get(color, "#f0f2f5")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  PAGE 1 — LOGIN
 # ══════════════════════════════════════════════════════════════════════════════
@@ -142,7 +156,7 @@ class LoginWindow:
         root.columnconfigure(1, weight=1)
         root.rowconfigure(0, weight=1)
 
-        # ── Left branding panel ────────────────────────────────────────
+        # Left branding panel
         left = tk.Frame(root, bg=SIDEBAR_BG)
         left.grid(row=0, column=0, sticky="nsew")
 
@@ -177,7 +191,7 @@ class LoginWindow:
 
         tk.Frame(root, bg="#2d3f5a", width=1).grid(row=0, column=0, sticky="nse")
 
-        # ── Right login form ───────────────────────────────────────────
+        # Right login form
         right = tk.Frame(root, bg="#131f30")
         right.grid(row=0, column=1, sticky="nsew")
 
@@ -196,14 +210,11 @@ class LoginWindow:
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 6))
         self._user_var = tk.StringVar()
         user_f = tk.Frame(form, bg="#1e2f47",
-                          highlightbackground="#2d3f5a",
-                          highlightthickness=1)
+                          highlightbackground="#2d3f5a", highlightthickness=1)
         user_f.pack(fill="x", pady=(0, 20))
         user_e = tk.Entry(user_f, textvariable=self._user_var,
-                          bg="#1e2f47", fg="#ffffff",
-                          insertbackground="#ffffff",
-                          font=("Segoe UI", 12), relief="flat",
-                          bd=0, width=34)
+                          bg="#1e2f47", fg="#ffffff", insertbackground="#ffffff",
+                          font=("Segoe UI", 12), relief="flat", bd=0, width=34)
         user_e.pack(fill="x", padx=14, pady=11)
         user_e.bind("<FocusIn>",  lambda e: user_f.config(highlightbackground=BRAND))
         user_e.bind("<FocusOut>", lambda e: user_f.config(highlightbackground="#2d3f5a"))
@@ -213,25 +224,20 @@ class LoginWindow:
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 6))
         self._pwd_var = tk.StringVar()
         pwd_f = tk.Frame(form, bg="#1e2f47",
-                         highlightbackground="#2d3f5a",
-                         highlightthickness=1)
+                         highlightbackground="#2d3f5a", highlightthickness=1)
         pwd_f.pack(fill="x", pady=(0, 30))
         pwd_e = tk.Entry(pwd_f, textvariable=self._pwd_var, show="●",
-                         bg="#1e2f47", fg="#ffffff",
-                         insertbackground="#ffffff",
-                         font=("Segoe UI", 12), relief="flat",
-                         bd=0, width=34)
+                         bg="#1e2f47", fg="#ffffff", insertbackground="#ffffff",
+                         font=("Segoe UI", 12), relief="flat", bd=0, width=34)
         pwd_e.pack(fill="x", padx=14, pady=11)
         pwd_e.bind("<FocusIn>",  lambda e: pwd_f.config(highlightbackground=BRAND))
         pwd_e.bind("<FocusOut>", lambda e: pwd_f.config(highlightbackground="#2d3f5a"))
 
         btn = tk.Button(form, text="Sign In  →",
                         bg=BRAND, fg="#ffffff",
-                        font=("Segoe UI", 13, "bold"),
-                        relief="flat", cursor="hand2",
+                        font=("Segoe UI", 13, "bold"), relief="flat", cursor="hand2",
                         activebackground=BRAND_DARK, activeforeground="#fff",
-                        padx=20, pady=13,
-                        command=self._login)
+                        padx=20, pady=13, command=self._login)
         btn.pack(fill="x")
         btn.bind("<Enter>", lambda e: btn.config(bg=BRAND_DARK))
         btn.bind("<Leave>", lambda e: btn.config(bg=BRAND))
@@ -240,7 +246,6 @@ class LoginWindow:
                                   bg="#131f30", fg="#f87171",
                                   font=("Segoe UI", 11))
         self._err_lbl.pack(pady=(16, 0))
-
         root.bind("<Return>", lambda e: self._login())
 
     def _login(self):
@@ -272,7 +277,8 @@ class ProjectPage:
     def _build(self):
         root = self.root
         root.columnconfigure(0, weight=1)
-        root.rowconfigure(1, weight=1)
+        root.rowconfigure(0, weight=0)   # navbar fixed
+        root.rowconfigure(1, weight=1)   # body expands
 
         # ── Top navbar ─────────────────────────────────────────────────
         nav = tk.Frame(root, bg=SIDEBAR_BG, height=62)
@@ -293,13 +299,11 @@ class ProjectPage:
 
         right_nav = tk.Frame(nav, bg=SIDEBAR_BG)
         right_nav.pack(side="right", padx=24, pady=14)
-
         tk.Button(right_nav, text="Logout",
                   bg=SIDEBAR2, fg=TEXT_SEC,
-                  font=("Segoe UI", 10), relief="flat",
-                  cursor="hand2", padx=14, pady=5,
+                  font=("Segoe UI", 10), relief="flat", cursor="hand2",
+                  padx=14, pady=5,
                   command=self._logout).pack(side="right", padx=(10, 0))
-
         av = tk.Canvas(right_nav, width=32, height=32,
                         bg=SIDEBAR_BG, highlightthickness=0)
         av.pack(side="right")
@@ -310,15 +314,37 @@ class ProjectPage:
                  bg=SIDEBAR_BG, fg="#c9d3e0",
                  font=("Segoe UI", 11)).pack(side="right", padx=8)
 
-        # ── Main content ───────────────────────────────────────────────
-        self._body = tk.Frame(root, bg=BG)
-        self._body.grid(row=1, column=0, sticky="nsew")
+        # ── Scrollable body ────────────────────────────────────────────
+        body_wrap = tk.Frame(root, bg=BG)
+        body_wrap.grid(row=1, column=0, sticky="nsew")
+        body_wrap.columnconfigure(0, weight=1)
+        body_wrap.rowconfigure(0, weight=1)
+
+        canvas = tk.Canvas(body_wrap, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(body_wrap, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+
+        self._body = tk.Frame(canvas, bg=BG)
+        self._body_id = canvas.create_window((0, 0), window=self._body, anchor="nw")
+
+        self._body.bind("<Configure>",
+                        lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",
+                    lambda e: canvas.itemconfig(self._body_id, width=e.width))
+        canvas.bind("<MouseWheel>",
+                    lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
+        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+
         self._render_cards()
 
     def _render_cards(self):
         for w in self._body.winfo_children():
             w.destroy()
 
+        # Header
         hdr = tk.Frame(self._body, bg=BG)
         hdr.pack(pady=(50, 8))
         tk.Label(hdr, text="Select a Project",
@@ -328,6 +354,7 @@ class ProjectPage:
                  bg=BG, fg=TEXT_SEC,
                  font=("Segoe UI", 13)).pack(pady=(6, 0))
 
+        # Divider
         div = tk.Frame(self._body, bg=BG)
         div.pack(pady=(28, 0))
         tk.Frame(div, bg=BORDER, height=1, width=120).pack(side="left", pady=8)
@@ -336,16 +363,24 @@ class ProjectPage:
                  font=("Segoe UI", 10)).pack(side="left")
         tk.Frame(div, bg=BORDER, height=1, width=120).pack(side="left", pady=8)
 
+        # Cards container — uses grid so cards wrap responsively
         cards_frame = tk.Frame(self._body, bg=BG)
-        cards_frame.pack(pady=24)
+        cards_frame.pack(pady=24, padx=40)
 
-        for proj in APP_DATA["projects"]:
-            self._project_card(cards_frame, proj)
+        all_projects = list(APP_DATA["projects"])
+        cols = 4  # max 4 per row
+        for i, proj in enumerate(all_projects):
+            row_i = i // cols
+            col_i = i % cols
+            self._project_card(cards_frame, proj, row_i, col_i)
 
-        # ── Add Project card ───────────────────────────────────────────
-        self._add_card(cards_frame)
+        # Add card in next slot
+        total = len(all_projects)
+        add_row = total // cols
+        add_col = total % cols
+        self._add_card(cards_frame, add_row, add_col)
 
-    def _project_card(self, parent, proj):
+    def _project_card(self, parent, proj, row_i, col_i):
         name  = proj["name"]
         color = proj["color"]
         icon  = proj["icon"]
@@ -357,45 +392,51 @@ class ProjectPage:
         card = tk.Frame(parent, bg=SURFACE,
                         highlightbackground=BORDER,
                         highlightthickness=1,
-                        cursor="hand2")
-        card.pack(side="left", padx=18)
+                        cursor="hand2", width=220)
+        card.grid(row=row_i, column=col_i, padx=14, pady=14, sticky="n")
+        card.pack_propagate(False)
+        card.config(width=220)
 
+        # Colour accent bar
         tk.Frame(card, bg=color, height=5).pack(fill="x")
 
         body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=30, pady=26)
+        body.pack(padx=22, pady=22, fill="x")
 
-        ic = tk.Canvas(body, width=52, height=52,
+        # Icon circle (solid tint — no alpha)
+        ic_bg = icon_bg(color)
+        ic = tk.Canvas(body, width=50, height=50,
                         bg=SURFACE, highlightthickness=0)
-        ic.pack(anchor="w", pady=(0, 14))
-        ic.create_oval(2, 2, 50, 50, fill=color + "22", outline=color, width=1)
-        ic.create_text(26, 26, text=icon, fill=color, font=("Segoe UI", 19))
+        ic.pack(anchor="w", pady=(0, 12))
+        ic.create_oval(2, 2, 48, 48, fill=ic_bg, outline=color, width=1)
+        ic.create_text(25, 25, text=icon, fill=color, font=("Segoe UI", 18))
 
         tk.Label(body, text=f"Project  {name.upper()}",
                  bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 16, "bold")).pack(anchor="w")
+                 font=("Segoe UI", 15, "bold")).pack(anchor="w")
         tk.Label(body, text=desc,
                  bg=SURFACE, fg=TEXT_SEC,
-                 font=("Segoe UI", 10), justify="left").pack(anchor="w", pady=(4, 16))
+                 font=("Segoe UI", 10), justify="left",
+                 wraplength=170).pack(anchor="w", pady=(4, 14))
 
         stats = tk.Frame(body, bg="#f4f5f7",
-                         highlightbackground=BORDER,
-                         highlightthickness=1)
-        stats.pack(fill="x", pady=(0, 18), ipadx=10, ipady=8)
-        tk.Label(stats, text=f"{len(proj_defects)} defects  •  {open_c} open",
+                         highlightbackground=BORDER, highlightthickness=1)
+        stats.pack(fill="x", pady=(0, 16), ipadx=8, ipady=7)
+        tk.Label(stats,
+                 text=f"{len(proj_defects)} defects  •  {open_c} open",
                  bg="#f4f5f7", fg=TEXT_SEC,
                  font=("Segoe UI", 10)).pack()
 
         open_btn = tk.Button(body, text="Open Project  →",
                              bg=color, fg="#ffffff",
-                             font=("Segoe UI", 11, "bold"),
+                             font=("Segoe UI", 10, "bold"),
                              relief="flat", cursor="hand2",
                              activebackground=BRAND_DARK,
-                             pady=10,
+                             pady=9,
                              command=lambda n=name: self._open_project(n))
         open_btn.pack(fill="x")
 
-        def enter(e, b=open_btn, c=color): b.config(bg=BRAND_DARK)
+        def enter(e, b=open_btn): b.config(bg=BRAND_DARK)
         def leave(e, b=open_btn, c=color): b.config(bg=c)
         open_btn.bind("<Enter>", enter)
         open_btn.bind("<Leave>", leave)
@@ -403,42 +444,46 @@ class ProjectPage:
         for w in [card, body, stats]:
             w.bind("<Button-1>", lambda e, n=name: self._open_project(n))
 
-    def _add_card(self, parent):
+    def _add_card(self, parent, row_i, col_i):
         DASH = "#c8cdd4"
         card = tk.Frame(parent, bg=SURFACE,
                         highlightbackground=DASH,
-                        highlightthickness=2,
-                        cursor="hand2")
-        card.pack(side="left", padx=18)
+                        highlightthickness=1,
+                        cursor="hand2", width=220)
+        card.grid(row=row_i, column=col_i, padx=14, pady=14, sticky="n")
+        card.pack_propagate(False)
+        card.config(width=220)
 
-        # Dashed top bar using canvas
         tk.Frame(card, bg=DASH, height=5).pack(fill="x")
 
         body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=30, pady=26)
+        body.pack(padx=22, pady=22, fill="x")
 
-        ic = tk.Canvas(body, width=52, height=52,
+        ic = tk.Canvas(body, width=50, height=50,
                         bg=SURFACE, highlightthickness=0)
-        ic.pack(anchor="w", pady=(0, 14))
-        ic.create_oval(2, 2, 50, 50, fill="#f0f2f5", outline=DASH, width=1)
-        ic.create_text(26, 26, text="+", fill=TEXT_MUT, font=("Segoe UI", 22))
+        ic.pack(anchor="w", pady=(0, 12))
+        ic.create_oval(2, 2, 48, 48, fill="#f0f2f5", outline=DASH, width=1)
+        ic.create_text(25, 25, text="+", fill=TEXT_MUT, font=("Segoe UI", 22))
 
         tk.Label(body, text="Add New Project",
                  bg=SURFACE, fg=TEXT_SEC,
-                 font=("Segoe UI", 16, "bold")).pack(anchor="w")
+                 font=("Segoe UI", 15, "bold")).pack(anchor="w")
         tk.Label(body, text="Create a custom\nproject workspace",
                  bg=SURFACE, fg=TEXT_MUT,
-                 font=("Segoe UI", 10), justify="left").pack(anchor="w", pady=(4, 16))
+                 font=("Segoe UI", 10), justify="left").pack(anchor="w", pady=(4, 14))
 
-        spacer = tk.Frame(body, bg=SURFACE, height=38)
-        spacer.pack(fill="x", pady=(0, 18))
+        spacer = tk.Frame(body, bg="#f4f5f7",
+                          highlightbackground=DASH, highlightthickness=1)
+        spacer.pack(fill="x", pady=(0, 16), ipadx=8, ipady=7)
+        tk.Label(spacer, text="New workspace",
+                 bg="#f4f5f7", fg=TEXT_MUT,
+                 font=("Segoe UI", 10)).pack()
 
         add_btn = tk.Button(body, text="+ Create Project",
                             bg=SIDEBAR2, fg="#c9d3e0",
-                            font=("Segoe UI", 11, "bold"),
+                            font=("Segoe UI", 10, "bold"),
                             relief="flat", cursor="hand2",
-                            pady=10,
-                            command=self._show_add_dialog)
+                            pady=9, command=self._show_add_dialog)
         add_btn.pack(fill="x")
         add_btn.bind("<Enter>", lambda e: add_btn.config(bg=SIDEBAR_BG))
         add_btn.bind("<Leave>", lambda e: add_btn.config(bg=SIDEBAR2))
@@ -451,14 +496,13 @@ class ProjectPage:
         dlg.title("Add New Project")
         dlg.configure(bg=SURFACE)
         dlg.resizable(False, False)
-        dlg.geometry("420x360")
+        dlg.geometry("420x380")
         dlg.grab_set()
 
-        # Center dialog
         dlg.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() - 420) // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() - 360) // 2
-        dlg.geometry(f"420x360+{x}+{y}")
+        x = self.root.winfo_x() + (self.root.winfo_width()  - 420) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 380) // 2
+        dlg.geometry(f"420x380+{x}+{y}")
 
         tk.Frame(dlg, bg=BRAND, height=5).pack(fill="x")
         body = tk.Frame(dlg, bg=SURFACE)
@@ -475,8 +519,7 @@ class ProjectPage:
                  bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
         name_var = tk.StringVar()
-        name_e = styled_entry(body, textvariable=name_var, width=40)
-        name_e.pack(fill="x", ipady=7)
+        styled_entry(body, textvariable=name_var, width=40).pack(fill="x", ipady=7)
 
         tk.Label(body, text="Description",
                  bg=SURFACE, fg=TEXT_PRI,
@@ -492,35 +535,37 @@ class ProjectPage:
         color_var = tk.StringVar(value=BRAND)
         color_row = tk.Frame(body, bg=SURFACE)
         color_row.pack(anchor="w")
-        colors = [BRAND, BLUE, PURPLE, GREEN, ORANGE, "#0891b2"]
-        btns = []
-        def pick_color(c, b_list):
+        palette = [BRAND, BLUE, PURPLE, GREEN, ORANGE, "#0891b2"]
+        btn_refs = []
+
+        def pick(c):
             color_var.set(c)
-            for btn_ in b_list:
-                btn_.config(relief="sunken" if btn_.cget("bg") == c else "flat")
-        for col in colors:
+            for b in btn_refs:
+                b.config(relief="sunken" if b.cget("bg") == c else "flat",
+                         bd=3 if b.cget("bg") == c else 1)
+
+        for col in palette:
             cb = tk.Button(color_row, bg=col, width=3, height=1,
-                           relief="flat", cursor="hand2")
-            cb.config(command=lambda c=col: pick_color(c, btns))
+                           relief="flat", bd=1, cursor="hand2",
+                           command=lambda c=col: pick(c))
             cb.pack(side="left", padx=4)
-            btns.append(cb)
-        btns[0].config(relief="sunken")
+            btn_refs.append(cb)
+        btn_refs[0].config(relief="sunken", bd=3)
 
         def do_create():
             n = name_var.get().strip()
             if not n:
                 messagebox.showerror("Validation", "Project name is required.", parent=dlg)
                 return
-            existing = [p["name"].lower() for p in APP_DATA["projects"]]
-            if n.lower() in existing:
+            if n.lower() in [p["name"].lower() for p in APP_DATA["projects"]]:
                 messagebox.showerror("Duplicate", f'Project "{n}" already exists.', parent=dlg)
                 return
-            desc = desc_box.get("1.0", "end").strip() or "Custom project"
+            raw_desc = desc_box.get("1.0", "end").strip()
             APP_DATA["projects"].append({
                 "name":  n,
                 "color": color_var.get(),
                 "icon":  "◇",
-                "desc":  desc,
+                "desc":  raw_desc or "Custom project",
             })
             save_data(APP_DATA)
             dlg.destroy()
@@ -532,12 +577,10 @@ class ProjectPage:
                                bg=BRAND, fg="#fff",
                                font=("Segoe UI", 11, "bold"),
                                relief="flat", cursor="hand2",
-                               padx=20, pady=9,
-                               command=do_create)
+                               padx=20, pady=9, command=do_create)
         create_btn.pack(side="left")
         create_btn.bind("<Enter>", lambda e: create_btn.config(bg=BRAND_DARK))
         create_btn.bind("<Leave>", lambda e: create_btn.config(bg=BRAND))
-
         tk.Button(btn_row, text="Cancel",
                   bg="#f0f2f5", fg=TEXT_SEC,
                   font=("Segoe UI", 11), relief="flat",
@@ -572,14 +615,13 @@ class DashboardWindow:
 
         proj_meta = next((p for p in APP_DATA["projects"] if p["name"] == project), {})
         self._color = proj_meta.get("color", BRAND)
-
         self._build()
         self._page_create()
 
-    # ── Shell ───────────────────────────────────────────────────────────
     def _build(self):
         root = self.root
         root.columnconfigure(0, weight=1)
+        root.rowconfigure(0, weight=0)
         root.rowconfigure(1, weight=1)
 
         # Navbar
@@ -599,12 +641,10 @@ class DashboardWindow:
 
         right_nav = tk.Frame(nav, bg=SIDEBAR_BG)
         right_nav.pack(side="right", padx=24)
-
         tk.Button(right_nav, text="Logout",
                   bg=SIDEBAR2, fg=TEXT_SEC,
                   font=("Segoe UI", 10), relief="flat", cursor="hand2",
                   padx=14, pady=5, command=self._logout).pack(side="right", padx=(10, 0))
-
         tk.Button(right_nav, text="← All Projects",
                   bg=SIDEBAR2, fg="#c9d3e0",
                   font=("Segoe UI", 10), relief="flat", cursor="hand2",
@@ -639,9 +679,8 @@ class DashboardWindow:
             self._nav_btns[key] = btn
 
         tk.Frame(sidebar, bg=SIDEBAR2, height=1).pack(fill="x", padx=16, pady=20)
-        proj_count = len(self._proj_defects())
         self._count_lbl = tk.Label(sidebar,
-                                    text=f"  {proj_count} defect(s)",
+                                    text=f"  {len(self._proj_defects())} defect(s)",
                                     bg=SIDEBAR_BG, fg=TEXT_MUT,
                                     font=("Segoe UI", 10))
         self._count_lbl.pack(anchor="w", padx=8)
@@ -657,14 +696,11 @@ class DashboardWindow:
             w.destroy()
         for k, btn in self._nav_btns.items():
             btn.config(bg=BRAND if k == key else SIDEBAR_BG)
-        if key == "create":
-            self._page_create()
-        elif key == "modify":
-            self._page_modify()
-        elif key == "view":
-            self._page_view()
-        elif key == "results":
-            self._page_results()
+        dispatch = {"create": self._page_create,
+                    "modify": self._page_modify,
+                    "view":   self._page_view,
+                    "results": self._page_results}
+        dispatch[key]()
 
     def _proj_defects(self):
         return [d for d in APP_DATA["defects"] if d.get("project") == self.project]
@@ -699,13 +735,11 @@ class DashboardWindow:
 
         tk.Frame(body, bg=self._color, height=3, width=40).pack(anchor="w", pady=(0, 18))
 
-        # Title
         tk.Label(body, text="Title *", bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
         title_var = tk.StringVar()
         styled_entry(body, textvariable=title_var).pack(fill="x", ipady=7)
 
-        # Description
         tk.Label(body, text="Description", bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(18, 5))
         desc_box = tk.Text(body, height=4, bg="#f9fafb", fg=TEXT_PRI,
@@ -713,7 +747,6 @@ class DashboardWindow:
                            highlightbackground=BORDER, highlightthickness=1)
         desc_box.pack(fill="x")
 
-        # Priority + Status
         row2 = tk.Frame(body, bg=SURFACE)
         row2.pack(fill="x", pady=(18, 0))
         row2.columnconfigure(0, weight=1)
@@ -727,13 +760,11 @@ class DashboardWindow:
             (1, "Status",   sta_var, ["Open", "In Progress", "Closed", "Resolved"]),
         ]:
             f = tk.Frame(row2, bg=SURFACE)
-            f.grid(row=0, column=col,
-                   padx=(0, 0) if col == 0 else (14, 0), sticky="ew")
+            f.grid(row=0, column=col, padx=(0, 0) if col == 0 else (14, 0), sticky="ew")
             tk.Label(f, text=lbl, bg=SURFACE, fg=TEXT_PRI,
                      font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
-            cb = ttk.Combobox(f, textvariable=var, values=opts,
-                              state="readonly", font=("Segoe UI", 11))
-            cb.pack(fill="x", ipady=6)
+            ttk.Combobox(f, textvariable=var, values=opts,
+                         state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=6)
 
         tk.Label(body, text="Assignee", bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(18, 5))
@@ -745,8 +776,7 @@ class DashboardWindow:
             if not t:
                 messagebox.showerror("Validation", "Title is required.")
                 return
-            all_ids = [d.get("id", 0) for d in APP_DATA["defects"]]
-            new_id  = max(all_ids, default=0) + 1
+            new_id = max((d.get("id", 0) for d in APP_DATA["defects"]), default=0) + 1
             APP_DATA["defects"].append({
                 "id":          new_id,
                 "project":     self.project,
@@ -768,10 +798,8 @@ class DashboardWindow:
 
         btn = tk.Button(body, text="Create Defect",
                         bg=self._color, fg="#fff",
-                        font=("Segoe UI", 12, "bold"),
-                        relief="flat", cursor="hand2",
-                        activebackground=BRAND_DARK,
-                        pady=12, command=do_create)
+                        font=("Segoe UI", 12, "bold"), relief="flat", cursor="hand2",
+                        activebackground=BRAND_DARK, pady=12, command=do_create)
         btn.pack(fill="x", pady=(26, 0))
         btn.bind("<Enter>", lambda e: btn.config(bg=BRAND_DARK))
         btn.bind("<Leave>", lambda e: btn.config(bg=self._color))
@@ -803,15 +831,14 @@ class DashboardWindow:
 
         choices = [f"#{d['id']}  —  {d['title']}" for d in defects]
         sel_var = tk.StringVar(value=choices[0])
-        sel_cb  = ttk.Combobox(sel_body, textvariable=sel_var,
-                               values=choices, state="readonly",
-                               font=("Segoe UI", 11), width=60)
-        sel_cb.pack(fill="x", ipady=7)
+        ttk.Combobox(sel_body, textvariable=sel_var, values=choices,
+                     state="readonly", font=("Segoe UI", 11),
+                     width=60).pack(fill="x", ipady=7)
 
         edit_wrap = tk.Frame(scroll, bg=BG)
         edit_wrap.pack(fill="x", padx=32, pady=(0, 28))
 
-        def load(*args):
+        def load(*_):
             for w in edit_wrap.winfo_children():
                 w.destroy()
             idx = choices.index(sel_var.get())
@@ -840,22 +867,18 @@ class DashboardWindow:
             row2.pack(fill="x", pady=(18, 0))
             row2.columnconfigure(0, weight=1)
             row2.columnconfigure(1, weight=1)
-
             p_var = tk.StringVar(value=d.get("priority", "Minor"))
             s_var = tk.StringVar(value=d.get("status",   "Open"))
-
             for col, lbl, var, opts in [
                 (0, "Priority", p_var, ["Critical", "Major", "Minor", "Low"]),
                 (1, "Status",   s_var, ["Open", "In Progress", "Closed", "Resolved"]),
             ]:
                 f = tk.Frame(row2, bg=SURFACE)
-                f.grid(row=0, column=col,
-                       padx=(0, 0) if col == 0 else (14, 0), sticky="ew")
+                f.grid(row=0, column=col, padx=(0, 0) if col == 0 else (14, 0), sticky="ew")
                 tk.Label(f, text=lbl, bg=SURFACE, fg=TEXT_PRI,
                          font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
-                cb2 = ttk.Combobox(f, textvariable=var, values=opts,
-                                   state="readonly", font=("Segoe UI", 11))
-                cb2.pack(fill="x", ipady=6)
+                ttk.Combobox(f, textvariable=var, values=opts,
+                             state="readonly", font=("Segoe UI", 11)).pack(fill="x", ipady=6)
 
             tk.Label(ebody, text="Assignee", bg=SURFACE, fg=TEXT_PRI,
                      font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(18, 5))
@@ -877,10 +900,8 @@ class DashboardWindow:
 
             sb = tk.Button(ebody, text="Save Changes",
                            bg=self._color, fg="#fff",
-                           font=("Segoe UI", 12, "bold"),
-                           relief="flat", cursor="hand2",
-                           activebackground=BRAND_DARK,
-                           pady=12, command=do_save)
+                           font=("Segoe UI", 12, "bold"), relief="flat", cursor="hand2",
+                           activebackground=BRAND_DARK, pady=12, command=do_save)
             sb.pack(fill="x", pady=(26, 0))
             sb.bind("<Enter>", lambda e: sb.config(bg=BRAND_DARK))
             sb.bind("<Leave>", lambda e: sb.config(bg=self._color))
@@ -912,7 +933,7 @@ class DashboardWindow:
                      width=w, anchor="w" if txt == "Title" else "center"
                      ).pack(side="left", padx=6, pady=8)
 
-        PRI_COLOR = {"Critical": RED_C,  "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
+        PRI_COLOR = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
         STA_COLOR = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
 
         for d in reversed(defects):
@@ -929,34 +950,28 @@ class DashboardWindow:
 
             tk.Label(inner, text=f"#{d.get('id','?')}",
                      bg=SURFACE, fg=TEXT_MUT,
-                     font=("Segoe UI", 10), width=5,
-                     anchor="center").pack(side="left", padx=4)
+                     font=("Segoe UI", 10), width=5, anchor="center").pack(side="left", padx=4)
             tk.Label(inner, text=d.get("title", ""),
                      bg=SURFACE, fg=TEXT_PRI,
-                     font=("Segoe UI", 11), width=32,
-                     anchor="w").pack(side="left", padx=8)
-
+                     font=("Segoe UI", 11), width=32, anchor="w").pack(side="left", padx=8)
             for val, col, w in [(pri, pc, 10), (sta, sc, 12)]:
                 tk.Label(inner, text=val,
-                         bg=col + "18", fg=col,
+                         bg=col, fg="#ffffff",
                          font=("Segoe UI", 9, "bold"),
                          padx=8, pady=3, width=w,
                          anchor="center").pack(side="left", padx=5)
-
             tk.Label(inner, text=d.get("assignee", "—"),
                      bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 10), width=14,
-                     anchor="center").pack(side="left", padx=5)
+                     font=("Segoe UI", 10), width=14, anchor="center").pack(side="left", padx=5)
             tk.Label(inner, text=d.get("created", ""),
                      bg=SURFACE, fg=TEXT_MUT,
-                     font=("Segoe UI", 10), width=14,
-                     anchor="center").pack(side="left", padx=5)
+                     font=("Segoe UI", 10), width=14, anchor="center").pack(side="left", padx=5)
 
     # ════════════════════════════════════════════════════════════════════
     #  RESULTS
     # ════════════════════════════════════════════════════════════════════
     def _page_results(self):
-        defects = self._proj_defects()
+        defects  = self._proj_defects()
         self._topbar("Results",
                      f"Defect analytics for Project {self.project.upper()}")
         scroll = scrollable_frame(self._main)
@@ -968,22 +983,18 @@ class DashboardWindow:
 
         stat_row = tk.Frame(scroll, bg=BG)
         stat_row.pack(fill="x", padx=28, pady=(24, 20))
-
         for lbl, val, color in [
-            ("Total Defects",  total,    TEXT_PRI),
-            ("Open",           open_c,   RED_C),
-            ("In Progress",    prog_c,   ORANGE),
-            ("Closed",         closed_c, GREEN),
+            ("Total Defects", total,    TEXT_PRI),
+            ("Open",          open_c,   RED_C),
+            ("In Progress",   prog_c,   ORANGE),
+            ("Closed",        closed_c, GREEN),
         ]:
             sc = tk.Frame(stat_row, bg=SURFACE,
                           highlightbackground=BORDER, highlightthickness=1)
-            sc.pack(side="left", expand=True, fill="x",
-                    padx=6, ipadx=12, ipady=16)
-            tk.Label(sc, text=str(val),
-                     bg=SURFACE, fg=color,
+            sc.pack(side="left", expand=True, fill="x", padx=6, ipadx=12, ipady=16)
+            tk.Label(sc, text=str(val), bg=SURFACE, fg=color,
                      font=("Segoe UI", 26, "bold")).pack()
-            tk.Label(sc, text=lbl,
-                     bg=SURFACE, fg=TEXT_SEC,
+            tk.Label(sc, text=lbl, bg=SURFACE, fg=TEXT_SEC,
                      font=("Segoe UI", 10)).pack(pady=(2, 0))
 
         tk.Frame(scroll, bg=BORDER, height=1).pack(fill="x", padx=28, pady=(8, 20))
@@ -1012,7 +1023,6 @@ class DashboardWindow:
         tbl_card = tk.Frame(scroll, bg=SURFACE,
                             highlightbackground=BORDER, highlightthickness=1)
         tbl_card.pack(fill="x", padx=28, pady=(0, 28))
-
         tk.Label(tbl_card, text="All Defects",
                  bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=22, pady=(16, 8))
@@ -1021,14 +1031,13 @@ class DashboardWindow:
         style = ttk.Style()
         style.configure("Treeview",         font=("Segoe UI", 10), rowheight=32)
         style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
-        style.map("Treeview", background=[("selected", self._color + "33")])
+        style.map("Treeview", background=[("selected", self._color)])
 
         tree = ttk.Treeview(tbl_card, columns=cols,
                              show="headings", height=min(len(defects), 12))
         for col, w in zip(cols, [50, 260, 90, 110, 120, 110]):
             tree.heading(col, text=col)
-            tree.column(col, width=w,
-                         anchor="w" if col == "Title" else "center")
+            tree.column(col, width=w, anchor="w" if col == "Title" else "center")
         tree.pack(fill="x", padx=20, pady=(0, 20))
 
         for d in reversed(defects):
@@ -1046,35 +1055,25 @@ class DashboardWindow:
                         highlightbackground=BORDER, highlightthickness=1)
         card.grid(row=0, column=col,
                   padx=(0, 0) if col == 0 else (14, 0), sticky="nsew")
-
         body = tk.Frame(card, bg=SURFACE)
         body.pack(padx=22, pady=20, fill="x")
-
         tk.Label(body, text=title, bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(0, 14))
-
         for lbl, count, color in items:
             row = tk.Frame(body, bg=SURFACE)
             row.pack(fill="x", pady=5)
-
             tk.Label(row, text=lbl, bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 10), width=12,
-                     anchor="w").pack(side="left")
-
+                     font=("Segoe UI", 10), width=12, anchor="w").pack(side="left")
             track = tk.Frame(row, bg="#f0f2f5", height=12)
             track.pack(side="left", fill="x", expand=True, padx=(8, 8))
             track.pack_propagate(False)
-
-            pct = count / total
-            if pct > 0:
-                fill = tk.Frame(track, bg=color, height=12)
-                fill.place(relx=0, rely=0, relwidth=pct, relheight=1)
-
+            if count / total > 0:
+                fill_f = tk.Frame(track, bg=color, height=12)
+                fill_f.place(relx=0, rely=0, relwidth=count / total, relheight=1)
             tk.Label(row, text=str(count), bg=SURFACE, fg=color,
                      font=("Segoe UI", 10, "bold"),
                      width=3, anchor="e").pack(side="right")
 
-    # ── Navigation ──────────────────────────────────────────────────────
     def _go_back(self):
         self.root.destroy()
         r = tk.Tk()
