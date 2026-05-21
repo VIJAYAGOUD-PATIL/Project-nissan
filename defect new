@@ -378,15 +378,19 @@ class ProjectPage:
 
         all_projects = list(APP_DATA["projects"])
         cols = 4
-        for i, proj in enumerate(all_projects):
-            cards_frame.columnconfigure(i % cols, weight=1)
-            self._project_card(cards_frame, proj, i // cols, i % cols)
+        # All items = project cards + one "Add New Project" card
+        all_items = list(all_projects) + ["__add__"]
+        num_cols = min(len(all_items), cols)
+        for c in range(num_cols):
+            cards_frame.columnconfigure(c, weight=1)
 
-        total = len(all_projects)
-        add_row = total // cols
-        add_col = total % cols
-        cards_frame.columnconfigure(add_col, weight=1)
-        self._add_card(cards_frame, add_row, add_col)
+        for i, item in enumerate(all_items):
+            row_i = i // cols
+            col_i = i % cols
+            if item == "__add__":
+                self._add_card(cards_frame, row_i, col_i)
+            else:
+                self._project_card(cards_frame, item, row_i, col_i)
 
     def _project_card(self, parent, proj, row_i, col_i):
         name  = proj["name"]
@@ -756,10 +760,47 @@ class DashboardWindow:
         canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
         canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
 
+
+        # ── Project info card (internal tracker + project name) ──────────────
+        proj_meta = next((p for p in APP_DATA["projects"] if p["name"] == self.project), {})
+        ic_bg_c = icon_bg(self._color)
+        info_card = tk.Frame(inner, bg=SURFACE,
+                             highlightbackground=self._color, highlightthickness=2)
+        info_card.pack(padx=36, pady=(30, 0), fill="x")
+        tk.Frame(info_card, bg=self._color, height=5).pack(fill="x")
+        info_body = tk.Frame(info_card, bg=SURFACE)
+        info_body.pack(fill="x", padx=24, pady=16)
+
+        ic_c = tk.Canvas(info_body, width=44, height=44, bg=SURFACE, highlightthickness=0)
+        ic_c.pack(side="left", padx=(0, 16))
+        ic_c.create_oval(2, 2, 42, 42, fill=ic_bg_c, outline=self._color, width=1)
+        ic_c.create_text(22, 22, text=proj_meta.get("icon", "◈"),
+                         fill=self._color, font=("Segoe UI", 18))
+
+        txt_f = tk.Frame(info_body, bg=SURFACE)
+        txt_f.pack(side="left", fill="x", expand=True)
+        tk.Label(txt_f, text=f"Internal Tracker  —  Project {self.project.upper()}",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 13, "bold")).pack(anchor="w")
+        tk.Label(txt_f, text="Defect Tracking & Analytics",
+                 bg=SURFACE, fg=TEXT_SEC,
+                 font=("Segoe UI", 10)).pack(anchor="w", pady=(2, 0))
+
+        _pd_now = [d for d in APP_DATA["defects"] if d.get("project") == self.project]
+        _op_now = sum(1 for d in _pd_now if d.get("status") == "Open")
+        badge_f = tk.Frame(info_body, bg=SURFACE)
+        badge_f.pack(side="right", padx=(0, 8))
+        _pill = tk.Frame(badge_f, bg=self._color)
+        _pill.pack(anchor="e")
+        tk.Label(_pill, text=f"{len(_pd_now)} defects  •  {_op_now} open",
+                 bg=self._color, fg="#ffffff",
+                 font=("Segoe UI", 10, "bold"),
+                 padx=12, pady=5).pack()
+
         # ── The Create Defect card ─────────────────────────────────────
         card = tk.Frame(inner, bg=SURFACE,
                         highlightbackground=BORDER, highlightthickness=1)
-        card.pack(padx=36, pady=30, fill="x")
+        card.pack(padx=36, pady=(16, 30), fill="x")
 
         # Card header strip
         card_hdr = tk.Frame(card, bg=self._color)
