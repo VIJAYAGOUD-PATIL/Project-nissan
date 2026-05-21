@@ -372,24 +372,116 @@ class ProjectPage:
                  bg=BG, fg=TEXT_MUT,
                  font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=40, pady=(14, 0))
 
-        # Cards — packed in rows of 4, no empty grid columns
+        # Cards — use pack (side=left) so no empty space ever appears
         cols = 4
         all_projects = list(APP_DATA["projects"])
         all_items = list(all_projects) + ["__add__"]
 
-        # Build rows as horizontal frames so only used columns appear
         for row_start in range(0, len(all_items), cols):
             row_items = all_items[row_start:row_start + cols]
             row_frame = tk.Frame(self._body, bg=BG)
-            row_frame.pack(pady=(16, 0), padx=30, fill="x")
-            for col_i, item in enumerate(row_items):
-                row_frame.columnconfigure(col_i, weight=1)
+            row_frame.pack(pady=(16, 0), padx=30, anchor="w")
+            for item in row_items:
                 if item == "__add__":
-                    self._add_card(row_frame, 0, col_i)
+                    self._add_card_pack(row_frame)
                 else:
-                    self._project_card(row_frame, item, 0, col_i)
+                    self._project_card_pack(row_frame, item)
 
         tk.Frame(self._body, bg=BG, height=40).pack()  # bottom spacing
+
+    def _project_card_pack(self, parent, proj):
+        name  = proj["name"]
+        color = proj["color"]
+        icon  = proj["icon"]
+        desc  = proj["desc"]
+
+        proj_defects = [d for d in APP_DATA["defects"] if d.get("project") == name]
+        open_c = sum(1 for d in proj_defects if d.get("status") == "Open")
+
+        card = tk.Frame(parent, bg=SURFACE,
+                        highlightbackground=BORDER, highlightthickness=1,
+                        cursor="hand2", width=240)
+        card.pack(side="left", padx=12, pady=12, fill="y")
+        card.pack_propagate(False)
+
+        tk.Frame(card, bg=color, height=5).pack(fill="x")
+        body = tk.Frame(card, bg=SURFACE)
+        body.pack(padx=20, pady=20, fill="both", expand=True)
+
+        ic_bg_c = icon_bg(color)
+        ic = tk.Canvas(body, width=50, height=50, bg=SURFACE, highlightthickness=0)
+        ic.pack(anchor="w", pady=(0, 12))
+        ic.create_oval(2, 2, 48, 48, fill=ic_bg_c, outline=color, width=1)
+        ic.create_text(25, 25, text=icon, fill=color, font=("Segoe UI", 18))
+
+        tk.Label(body, text=f"Project  {name.upper()}",
+                 bg=SURFACE, fg=TEXT_PRI,
+                 font=("Segoe UI", 13, "bold"), anchor="w").pack(anchor="w")
+        tk.Label(body, text=desc,
+                 bg=SURFACE, fg=TEXT_SEC,
+                 font=("Segoe UI", 10), justify="left",
+                 wraplength=180).pack(anchor="w", pady=(4, 14))
+
+        stats = tk.Frame(body, bg="#f4f5f7",
+                         highlightbackground=BORDER, highlightthickness=1)
+        stats.pack(fill="x", pady=(0, 14), ipadx=8, ipady=6)
+        tk.Label(stats, text=f"{len(proj_defects)} defects  •  {open_c} open",
+                 bg="#f4f5f7", fg=TEXT_SEC, font=("Segoe UI", 10)).pack()
+
+        open_btn = tk.Button(body, text="Open Project  →",
+                             bg=color, fg="#ffffff",
+                             font=("Segoe UI", 10, "bold"),
+                             relief="flat", cursor="hand2",
+                             activebackground=BRAND_DARK, pady=9,
+                             command=lambda n=name: self._open_project(n))
+        open_btn.pack(fill="x")
+        open_btn.bind("<Enter>", lambda e, b=open_btn: b.config(bg=BRAND_DARK))
+        open_btn.bind("<Leave>", lambda e, b=open_btn, c=color: b.config(bg=c))
+
+        for w in [card, body, stats]:
+            w.bind("<Button-1>", lambda e, n=name: self._open_project(n))
+
+    def _add_card_pack(self, parent):
+        DASH = "#c8cdd4"
+        card = tk.Frame(parent, bg=SURFACE,
+                        highlightbackground=DASH, highlightthickness=1,
+                        cursor="hand2", width=240)
+        card.pack(side="left", padx=12, pady=12, fill="y")
+        card.pack_propagate(False)
+
+        tk.Frame(card, bg=DASH, height=5).pack(fill="x")
+        body = tk.Frame(card, bg=SURFACE)
+        body.pack(padx=20, pady=20, fill="both", expand=True)
+
+        ic = tk.Canvas(body, width=50, height=50, bg=SURFACE, highlightthickness=0)
+        ic.pack(anchor="w", pady=(0, 12))
+        ic.create_oval(2, 2, 48, 48, fill="#f0f2f5", outline=DASH, width=1)
+        ic.create_text(25, 25, text="+", fill=TEXT_MUT, font=("Segoe UI", 22))
+
+        tk.Label(body, text="Add New Project",
+                 bg=SURFACE, fg=TEXT_SEC,
+                 font=("Segoe UI", 13, "bold")).pack(anchor="w")
+        tk.Label(body, text="Create a custom\nproject workspace",
+                 bg=SURFACE, fg=TEXT_MUT,
+                 font=("Segoe UI", 10), justify="left").pack(anchor="w", pady=(4, 14))
+
+        spacer = tk.Frame(body, bg="#f4f5f7",
+                          highlightbackground=DASH, highlightthickness=1)
+        spacer.pack(fill="x", pady=(0, 14), ipadx=8, ipady=6)
+        tk.Label(spacer, text="New workspace",
+                 bg="#f4f5f7", fg=TEXT_MUT, font=("Segoe UI", 10)).pack()
+
+        add_btn = tk.Button(body, text="+ Create Project",
+                            bg=SIDEBAR2, fg="#c9d3e0",
+                            font=("Segoe UI", 10, "bold"),
+                            relief="flat", cursor="hand2",
+                            pady=9, command=self._show_add_dialog)
+        add_btn.pack(fill="x")
+        add_btn.bind("<Enter>", lambda e: add_btn.config(bg=SIDEBAR_BG))
+        add_btn.bind("<Leave>", lambda e: add_btn.config(bg=SIDEBAR2))
+
+        for w in [card, body]:
+            w.bind("<Button-1>", lambda e: self._show_add_dialog())
 
     def _project_card(self, parent, proj, row_i, col_i):
         name  = proj["name"]
