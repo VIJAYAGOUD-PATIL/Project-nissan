@@ -233,15 +233,18 @@ def launch_cb_create(cb_url, cb_user, cb_pass, callback):
 # ── Playwright: Modify (edit) an existing defect in CodeBeamer ────────────────
 def _run_playwright_modify(ticket_url, cb_user, cb_pass, callback):
     """
-    Opens the given ticket URL in a headed browser.
-    - If not logged in, logs in with cb_user/cb_pass first.
-    - Clicks the Edit button.
-    - Waits for the user to make changes and click Save.
-    - Calls callback({"error": None}) on success or callback({"error": "..."}) on failure.
-    The browser stays open until Save is detected (URL change or edit form disappears).
+    Opens <ticket_url>/edit directly in a headed browser.
+    - Strips any trailing slash from ticket_url, then appends '/edit'.
+    - If not logged in, logs in with cb_user/cb_pass first, then re-navigates
+      to the /edit URL.
+    - Stays on the edit page and polls every second for up to 10 minutes.
+      The loop ends only when the Save button disappears from the DOM
+      (i.e. the user clicked Save and CB navigated away / removed the form).
+    - Calls callback({"error": None, "link": final_url}) on success or
+      callback({"error": "..."}) on failure.
     """
     try:
-        from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+        from playwright.sync_api import sync_playwright
     except ImportError:
         callback({"error": "playwright not installed.\nRun: pip install playwright && playwright install chromium"})
         return
@@ -256,11 +259,14 @@ def _run_playwright_modify(ticket_url, cb_user, cb_pass, callback):
             ctx  = browser.new_context(no_viewport=True)
             page = ctx.new_page()
 
-            # 1. Navigate to ticket URL
-            page.goto(ticket_url, wait_until="domcontentloaded", timeout=30_000)
+            # 1. Build the /edit URL
+            edit_url = ticket_url.rstrip("/") + "/edit"
+
+            # 2. Navigate directly to the /edit page
+            page.goto(edit_url, wait_until="domcontentloaded", timeout=30_000)
             page.wait_for_load_state("networkidle", timeout=20_000)
 
-            # 2. Check if login is required
+            # 3. If redirected to login, handle it then return to /edit
             if page.locator('input[type="password"]').count() > 0:
                 for sel in ['input[name="user"]', 'input[name="username"]',
                             'input[id="username"]', '#user']:
@@ -280,46 +286,31 @@ def _run_playwright_modify(ticket_url, cb_user, cb_pass, callback):
                         break
 
                 page.wait_for_load_state("networkidle", timeout=20_000)
-                # After login, go back to ticket
-                page.goto(ticket_url, wait_until="domcontentloaded", timeout=30_000)
+
+                # Re-navigate to the /edit URL after login
+                page.goto(edit_url, wait_until="domcontentloaded", timeout=30_000)
                 page.wait_for_load_state("networkidle", timeout=20_000)
 
-            # 3. Click Edit button
-            # CB uses title="Edit (Alt + e)" or data-original-title="Edit (Alt + e)"
-            # so we match any element whose title/text STARTS WITH "Edit"
-            clicked = page.evaluate("""
-                () => {
-                    const candidates = Array.from(
-                        document.querySelectorAll('a, button, input[type="button"], [role="button"]')
-                    );
-                    const btn = candidates.find(el => {
-                        const title  = (el.getAttribute('title') || '').trim();
-                        const dtitle = (el.getAttribute('data-original-title') || '').trim();
-                        const text   = (el.textContent || '').trim();
-                        return title.startsWith('Edit') ||
-                               dtitle.startsWith('Edit') ||
-                               text === 'Edit';
-                    });
-                    if (btn) { btn.click(); return true; }
-                    return false;
-                }
-            """)
+            # 4. Wait for the user to click Save.
+            #    We stay on the page until the Save button is gone from the DOM,
+            #    which means CB has accepted the save and moved away from the edit form.
+            #    Poll every second for up to 10 minutes (600 ticks).
+            SAVE_SELECTORS = (
+                'input[type="submit"][value*="Save"], '
+                'button:has-text("Save"), '
+                'input[value="Save"]'
+            )
 
-            if not clicked:
-                # Final fallback: use the keyboard shortcut Alt+E that CB advertises
-                page.keyboard.press("Alt+e")
+            # Give CB a moment to fully render the edit form before we start polling
+            page.wait_for_timeout(1500)
 
-            page.wait_for_load_state("networkidle", timeout=15_000)
-
-            # 4. Wait for Save — detect Save button disappearing (user clicked Save)
-            pre_save_url = page.url
-            for tick in range(600):           # up to 10 minutes
+            for tick in range(600):           # 600 × 1 s = 10 minutes
                 page.wait_for_timeout(1000)
-                save_gone = page.locator(
-                    'input[type="submit"][value*="Save"], button:has-text("Save")'
-                ).count() == 0
 
-                if save_gone and tick > 3:
+                save_present = page.locator(SAVE_SELECTORS).count() > 0
+
+                # Save button gone after the form was rendered → user clicked Save
+                if not save_present and tick > 2:
                     break
 
             final_url = page.url
@@ -1494,6 +1485,7 @@ class DashboardWindow:
                                  ).pack(side="left", fill="x", expand=True)
 
                 _row("Issue ID",      issue_id)
+                _row("Description",   description)
                 _row("Issue Link",    link, clickable=True)
 
                 # separator
@@ -1666,9 +1658,10 @@ class DashboardWindow:
                 return
             url_box.config(highlightbackground="#d9dde3")
             edit_btn.config(state="disabled", text="⏳  Opening Browser…")
+            edit_url_preview = raw_url.rstrip("/") + "/edit"
             status_lbl.config(
-                text="Browser is opening. The Edit button will be clicked automatically.\n"
-                     "Make your changes and click Save — the browser will close.",
+                text=f"Opening: {edit_url_preview}\n"
+                     "Make your changes and click Save — the browser will close automatically.",
                 fg=TEXT_SEC)
             launch_cb_modify(raw_url, CB_USERNAME, CB_PASSWORD, _on_modify_result)
 
@@ -1745,7 +1738,9 @@ class DashboardWindow:
 
         hdr = tk.Frame(tcard, bg="#e8eaed")
         hdr.pack(fill="x", padx=0)
-        for txt, w in [("Issue ID", 10), ("Issue Link", 50), ("Created", 12)]:
+        for txt, w in [("Issue ID", 10), ("Description", 30),
+                       ("Issue Link", 28), ("Priority", 10),
+                       ("Status", 12), ("Created", 12)]:
             tk.Label(hdr, text=txt, bg="#e8eaed", fg=TEXT_SEC,
                      font=("Segoe UI", 10, "bold"),
                      width=w, anchor="w"
@@ -1771,18 +1766,32 @@ class DashboardWindow:
                      font=("Segoe UI", 10, "bold"), width=10, anchor="w"
                      ).pack(side="left", padx=4)
 
+            # Description
+            desc = d.get("description", d.get("title", "—"))
+            tk.Label(inner2, text=desc[:40] + ("…" if len(desc) > 40 else ""),
+                     bg=row_bg, fg=TEXT_PRI,
+                     font=("Segoe UI", 10), width=30, anchor="w"
+                     ).pack(side="left", padx=4)
+
             # Issue Link (clickable)
             link = d.get("link", "")
-            link_short = link[:65] + "…" if len(link) > 65 else link
+            link_short = link[:35] + "…" if len(link) > 35 else link
             lnk_lbl = tk.Label(inner2, text=link_short or "—",
                                 bg=row_bg, fg=BLUE if link else TEXT_MUT,
                                 font=("Segoe UI", 10,
                                       "underline" if link else "normal"),
-                                width=50, anchor="w",
+                                width=28, anchor="w",
                                 cursor="hand2" if link else "arrow")
             lnk_lbl.pack(side="left", padx=4)
             if link:
                 lnk_lbl.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
+
+            for val, col in [(pri, pc), (sta, sc)]:
+                badge = tk.Frame(inner2, bg=col)
+                badge.pack(side="left", padx=4)
+                tk.Label(badge, text=val, bg=col, fg="#ffffff",
+                         font=("Segoe UI", 9, "bold"),
+                         padx=8, pady=3).pack()
 
             tk.Label(inner2, text=d.get("created", ""),
                      bg=row_bg, fg=TEXT_MUT,
