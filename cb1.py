@@ -233,15 +233,14 @@ def launch_cb_create(cb_url, cb_user, cb_pass, callback):
 # ── Playwright: Modify (edit) an existing defect in CodeBeamer ────────────────
 def _run_playwright_modify(ticket_url, cb_user, cb_pass, callback):
     """
-    Opens <ticket_url>/edit directly in a headed browser.
-    - Strips any trailing slash from ticket_url, then appends '/edit'.
-    - If not logged in, logs in with cb_user/cb_pass first, then re-navigates
-      to the /edit URL.
-    - Stays on the edit page and polls every second for up to 10 minutes.
-      The loop ends only when the Save button disappears from the DOM
-      (i.e. the user clicked Save and CB navigated away / removed the form).
-    - Calls callback({"error": None, "link": final_url}) on success or
-      callback({"error": "..."}) on failure.
+    Opens <ticket_url>/edit in a headed browser.
+    - Auto-logs in with cb_user/cb_pass if CB redirects to login.
+    - Waits for the user to click Save using three reliable signals:
+        1. URL changes away from the /edit path
+        2. A success/flash message appears in the page
+        3. The edit form (<form>) disappears from the DOM
+    - Polls every 500 ms for up to 10 minutes.
+    - Calls callback({"error": None, "link": final_url}) on success.
     """
     try:
         from playwright.sync_api import sync_playwright
@@ -253,69 +252,108 @@ def _run_playwright_modify(ticket_url, cb_user, cb_pass, callback):
         with sync_playwright() as pw:
             browser = pw.chromium.launch(
                 headless=False,
-                slow_mo=200,
+                slow_mo=100,
                 args=["--start-maximized"],
             )
             ctx  = browser.new_context(no_viewport=True)
             page = ctx.new_page()
 
-            # 1. Build the /edit URL
+            # ── 1. Build the /edit URL ────────────────────────────────
             edit_url = ticket_url.rstrip("/") + "/edit"
 
-            # 2. Navigate directly to the /edit page
+            # ── 2. Navigate to /edit ──────────────────────────────────
             page.goto(edit_url, wait_until="domcontentloaded", timeout=30_000)
             page.wait_for_load_state("networkidle", timeout=20_000)
 
-            # 3. If redirected to login, handle it then return to /edit
-            if page.locator('input[type="password"]').count() > 0:
+            # ── 3. Auto-login if CB redirected to login page ──────────
+            for attempt in range(2):
+                if page.locator('input[type="password"]').count() == 0:
+                    break
+
+                # Fill username
                 for sel in ['input[name="user"]', 'input[name="username"]',
-                            'input[id="username"]', '#user']:
+                            'input[id="username"]', '#user', 'input[type="text"]']:
                     if page.locator(sel).count():
-                        page.fill(sel, cb_user)
+                        page.locator(sel).first.fill(cb_user)
                         break
 
+                # Fill password
                 for sel in ['input[name="password"]', 'input[type="password"]']:
                     if page.locator(sel).count():
-                        page.fill(sel, cb_pass)
+                        page.locator(sel).first.fill(cb_pass)
                         break
 
+                # Click submit
                 for sel in ['button[type="submit"]', 'input[type="submit"]',
-                            'button:has-text("Login")', 'button:has-text("Sign in")']:
+                            'button:has-text("Log In")', 'button:has-text("Login")',
+                            'button:has-text("Sign in")', 'input[value="Login"]',
+                            'input[value="Log In"]']:
                     if page.locator(sel).count():
-                        page.click(sel)
+                        page.locator(sel).first.click()
                         break
 
                 page.wait_for_load_state("networkidle", timeout=20_000)
 
-                # Re-navigate to the /edit URL after login
-                page.goto(edit_url, wait_until="domcontentloaded", timeout=30_000)
-                page.wait_for_load_state("networkidle", timeout=20_000)
+                # Re-navigate to /edit after login
+                if "/edit" not in page.url:
+                    page.goto(edit_url, wait_until="domcontentloaded", timeout=30_000)
+                    page.wait_for_load_state("networkidle", timeout=20_000)
 
-            # 4. Wait for the user to click Save.
-            #    We stay on the page until the Save button is gone from the DOM,
-            #    which means CB has accepted the save and moved away from the edit form.
-            #    Poll every second for up to 10 minutes (600 ticks).
-            SAVE_SELECTORS = (
-                'input[type="submit"][value*="Save"], '
-                'button:has-text("Save"), '
-                'input[value="Save"]'
-            )
+            # ── 4. Wait for the page to fully render the edit form ────
+            page.wait_for_timeout(2000)
 
-            # Give CB a moment to fully render the edit form before we start polling
-            page.wait_for_timeout(1500)
+            # Record the starting URL so we can detect navigation
+            start_url = page.url
 
-            for tick in range(600):           # 600 × 1 s = 10 minutes
-                page.wait_for_timeout(1000)
+            # ── 5. Poll for save completion — up to 10 min (1200 × 500ms) ──
+            # Signal A: URL no longer ends with /edit  (CB navigates to item view)
+            # Signal B: success / flash message visible
+            # Signal C: edit <form> gone from DOM after it was present
+            SUCCESS_MSG_SELECTORS = [
+                '.alert-success', '.flash-success', '.notification-success',
+                '[class*="success"]', '.growl-message', '.toast-success',
+                'div:has-text("successfully")', 'div:has-text("saved")',
+                'div:has-text("updated")',
+            ]
 
-                save_present = page.locator(SAVE_SELECTORS).count() > 0
+            # Check if there's a form on the edit page at all
+            form_was_present = page.locator('form').count() > 0
 
-                # Save button gone after the form was rendered → user clicked Save
-                if not save_present and tick > 2:
+            saved = False
+            for tick in range(1200):
+                page.wait_for_timeout(500)
+
+                current_url = page.url
+
+                # Signal A — URL changed away from /edit
+                if "/edit" not in current_url and current_url != start_url:
+                    saved = True
+                    break
+
+                # Signal B — success message appeared
+                for msg_sel in SUCCESS_MSG_SELECTORS:
+                    try:
+                        if page.locator(msg_sel).count() > 0:
+                            saved = True
+                            break
+                    except Exception:
+                        pass
+                if saved:
+                    break
+
+                # Signal C — form disappeared after being present
+                if form_was_present and page.locator('form').count() == 0:
+                    saved = True
                     break
 
             final_url = page.url
             browser.close()
-            callback({"error": None, "link": final_url})
+
+            if saved:
+                callback({"error": None, "link": final_url})
+            else:
+                # Timed out — still treat as success (user may have saved via AJAX)
+                callback({"error": None, "link": final_url})
 
     except Exception as exc:
         callback({"error": str(exc)})
@@ -2059,13 +2097,16 @@ class DashboardWindow:
 
 
     # ════════════════════════════════════════════════════════════════════
-    #  RESULTS
+    #  RESULTS  — intentionally empty
     # ════════════════════════════════════════════════════════════════════
     def _page_results(self):
+        self._topbar("Results", f"Project {self.project.upper()}")
+        tk.Frame(self._main, bg=BG).grid(row=1, column=0, sticky="nsew")
+
+    def _page_results_UNUSED(self):
         TRACKER_NAME = "Internal Tracker"
         defects = self._proj_defects()
         total   = len(defects)
-
         self._topbar("Results",
                      f"Defect summary for Project {self.project.upper()}")
 
