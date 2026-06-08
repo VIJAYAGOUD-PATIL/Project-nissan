@@ -2062,9 +2062,14 @@ class DashboardWindow:
     #  RESULTS
     # ════════════════════════════════════════════════════════════════════
     def _page_results(self):
+        TRACKER_NAME = "Internal Tracker"
         defects = self._proj_defects()
+        total   = len(defects)
+
         self._topbar("Results",
-                     f"Analytics & breakdown for Project {self.project.upper()}")
+                     f"Defect summary for Project {self.project.upper()}")
+
+        # ── Scrollable outer ──────────────────────────────────────────
         scroll_outer = tk.Frame(self._main, bg=BG)
         scroll_outer.grid(row=1, column=0, sticky="nsew")
         scroll_outer.columnconfigure(0, weight=1)
@@ -2080,86 +2085,135 @@ class DashboardWindow:
         inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(wid, width=e.width))
         canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
-        canvas.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
-        canvas.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+        canvas.bind("<Button-4>",   lambda e: canvas.yview_scroll(-1, "units"))
+        canvas.bind("<Button-5>",   lambda e: canvas.yview_scroll(1,  "units"))
 
-        total    = len(defects)
-        open_c   = sum(1 for d in defects if d.get("status") == "Open")
-        prog_c   = sum(1 for d in defects if d.get("status") == "In Progress")
-        closed_c = sum(1 for d in defects if d.get("status") in ("Closed", "Resolved"))
+        # ── Total Defects summary badge ───────────────────────────────
+        summary_wrap = tk.Frame(inner, bg=BG)
+        summary_wrap.pack(fill="x", padx=36, pady=(30, 0))
 
-        # ── Summary stat cards ────────────────────────────────────────
-        stats_wrap = tk.Frame(inner, bg=BG)
-        stats_wrap.pack(fill="x", padx=36, pady=(30, 0))
-        stats_wrap.columnconfigure(0, weight=1)
-        stats_wrap.columnconfigure(1, weight=1)
-        stats_wrap.columnconfigure(2, weight=1)
-        stats_wrap.columnconfigure(3, weight=1)
+        badge = tk.Frame(summary_wrap, bg=SURFACE,
+                         highlightbackground=BORDER, highlightthickness=1)
+        badge.pack(anchor="w")
+        tk.Frame(badge, bg=self._color, height=4).pack(fill="x")
+        badge_inner = tk.Frame(badge, bg=SURFACE)
+        badge_inner.pack(padx=28, pady=18)
 
-        for col_i, (lbl, val, color, icon) in enumerate([
-            ("Total Defects", total,    TEXT_PRI, "📋"),
-            ("Open",          open_c,   RED_C,    "🔴"),
-            ("In Progress",   prog_c,   ORANGE,   "🟡"),
-            ("Closed",        closed_c, GREEN,    "🟢"),
+        tk.Label(badge_inner, text="📋", bg=SURFACE,
+                 font=("Segoe UI", 26)).pack(side="left", padx=(0, 16))
+        tk.Label(badge_inner, text=str(total), bg=SURFACE, fg=self._color,
+                 font=("Segoe UI", 36, "bold")).pack(side="left")
+        tk.Label(badge_inner, text="  Total Defects", bg=SURFACE, fg=TEXT_SEC,
+                 font=("Segoe UI", 14)).pack(side="left", padx=(4, 0))
+
+        # ── Table card ────────────────────────────────────────────────
+        tcard = tk.Frame(inner, bg=SURFACE,
+                         highlightbackground=BORDER, highlightthickness=1)
+        tcard.pack(fill="x", padx=36, pady=28)
+
+        # Header bar
+        thdr = tk.Frame(tcard, bg=self._color)
+        thdr.pack(fill="x")
+        tk.Label(thdr, text="  ☰  Defect List",
+                 bg=self._color, fg="#fff",
+                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=16, pady=10)
+        tk.Label(thdr, text=f"  🗂  {TRACKER_NAME}  ",
+                 bg=self._color, fg="#ffe0e8",
+                 font=("Segoe UI", 10)).pack(side="left", padx=(0, 16), pady=10)
+        tk.Label(thdr, text=f"{total} record(s)",
+                 bg=self._color, fg="#ffe0e8",
+                 font=("Segoe UI", 10)).pack(side="right", padx=16, pady=10)
+
+        if not defects:
+            empty = tk.Frame(tcard, bg=SURFACE)
+            empty.pack(pady=48)
+            tk.Label(empty, text="📭  No defects logged yet.",
+                     bg=SURFACE, fg=TEXT_SEC,
+                     font=("Segoe UI", 13)).pack()
+            return
+
+        # ── Grid table — 3 columns: Issue ID | Issue Link | Tracker Name ──
+        # Col weights: 0=fixed  1=stretches  2=fixed
+        COL_W = [120, 0, 180]   # 0 = flexible (weight=1)
+
+        grid_wrap = tk.Frame(tcard, bg=SURFACE)
+        grid_wrap.pack(fill="x")
+        grid_wrap.columnconfigure(0, minsize=COL_W[0], weight=0)
+        grid_wrap.columnconfigure(1, weight=1,          minsize=260)
+        grid_wrap.columnconfigure(2, minsize=COL_W[2],  weight=0)
+
+        # ── Column header row ─────────────────────────────────────────
+        hdr_row = tk.Frame(grid_wrap, bg="#e8eaed")
+        hdr_row.grid(row=0, column=0, columnspan=3, sticky="ew")
+        hdr_row.columnconfigure(0, minsize=COL_W[0], weight=0)
+        hdr_row.columnconfigure(1, weight=1,          minsize=260)
+        hdr_row.columnconfigure(2, minsize=COL_W[2],  weight=0)
+
+        for ci, (txt, anc) in enumerate([
+            ("Issue ID",     "w"),
+            ("Issue Link",   "w"),
+            ("Tracker Name", "center"),
         ]):
-            sc = tk.Frame(stats_wrap, bg=SURFACE,
-                          highlightbackground=BORDER, highlightthickness=1)
-            sc.grid(row=0, column=col_i, padx=8, sticky="nsew")
-            tk.Frame(sc, bg=color, height=4).pack(fill="x")
-            tk.Label(sc, text=icon, bg=SURFACE,
-                     font=("Segoe UI", 22)).pack(pady=(18, 4))
-            tk.Label(sc, text=str(val), bg=SURFACE, fg=color,
-                     font=("Segoe UI", 32, "bold")).pack()
-            tk.Label(sc, text=lbl, bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 10)).pack(pady=(4, 18))
-
-        # ── Bar charts ────────────────────────────────────────────────
-        charts_row = tk.Frame(inner, bg=BG)
-        charts_row.pack(fill="x", padx=36, pady=24)
-        charts_row.columnconfigure(0, weight=1)
-        charts_row.columnconfigure(1, weight=1)
-
-        self._bar_card(charts_row, 0, "Priority Breakdown", [
-            ("Critical", sum(1 for d in defects if d.get("priority") == "Critical"), RED_C),
-            ("Major",    sum(1 for d in defects if d.get("priority") == "Major"),    ORANGE),
-            ("Minor",    sum(1 for d in defects if d.get("priority") == "Minor"),    BLUE),
-            ("Low",      sum(1 for d in defects if d.get("priority") == "Low"),      GREEN),
-        ], total or 1)
-
-        self._bar_card(charts_row, 1, "Status Breakdown", [
-            ("Open",        open_c,   RED_C),
-            ("In Progress", prog_c,   ORANGE),
-            ("Closed",      sum(1 for d in defects if d.get("status") == "Closed"),   GREEN),
-            ("Resolved",    sum(1 for d in defects if d.get("status") == "Resolved"), BLUE),
-        ], total or 1)
-
-
-
-    def _bar_card(self, parent, col, title, items, total):
-        card = tk.Frame(parent, bg=SURFACE,
-                        highlightbackground=BORDER, highlightthickness=1)
-        card.grid(row=0, column=col,
-                  padx=(0, 12) if col == 0 else (12, 0), sticky="nsew")
-        tk.Frame(card, bg=self._color, height=4).pack(fill="x")
-        body = tk.Frame(card, bg=SURFACE)
-        body.pack(padx=24, pady=22, fill="x")
-        tk.Label(body, text=title, bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(0, 16))
-        for lbl, count, color in items:
-            row = tk.Frame(body, bg=SURFACE)
-            row.pack(fill="x", pady=6)
-            tk.Label(row, text=lbl, bg=SURFACE, fg=TEXT_SEC,
-                     font=("Segoe UI", 10), width=13, anchor="w").pack(side="left")
-            track = tk.Frame(row, bg="#f0f2f5", height=14)
-            track.pack(side="left", fill="x", expand=True, padx=(8, 8))
-            track.pack_propagate(False)
-            ratio = count / total
-            if ratio > 0:
-                fill_f = tk.Frame(track, bg=color, height=14)
-                fill_f.place(relx=0, rely=0, relwidth=ratio, relheight=1)
-            tk.Label(row, text=str(count), bg=SURFACE, fg=color,
+            tk.Label(hdr_row, text=txt, bg="#e8eaed", fg=TEXT_SEC,
                      font=("Segoe UI", 10, "bold"),
-                     width=4, anchor="e").pack(side="right")
+                     anchor=anc, padx=14, pady=10
+                     ).grid(row=0, column=ci, sticky="ew")
+
+        # separator below header
+        tk.Frame(grid_wrap, bg=BORDER, height=1).grid(
+            row=1, column=0, columnspan=3, sticky="ew")
+
+        # ── Data rows ─────────────────────────────────────────────────
+        for i, d in enumerate(reversed(defects)):
+            grid_ri = i * 2 + 2
+            sep_ri  = grid_ri + 1
+            row_bg  = SURFACE if i % 2 == 0 else "#fafbfc"
+            link     = d.get("link", "")
+            issue_id = d.get("cb_id") or f"#{d.get('id', '?')}"
+
+            row_frame = tk.Frame(grid_wrap, bg=row_bg)
+            row_frame.grid(row=grid_ri, column=0, columnspan=3, sticky="ew")
+            row_frame.columnconfigure(0, minsize=COL_W[0], weight=0)
+            row_frame.columnconfigure(1, weight=1,          minsize=260)
+            row_frame.columnconfigure(2, minsize=COL_W[2],  weight=0)
+
+            # Col 0 — Issue ID
+            tk.Label(row_frame, text=issue_id,
+                     bg=row_bg, fg=TEXT_PRI,
+                     font=("Segoe UI", 10, "bold"),
+                     anchor="w", padx=14, pady=11
+                     ).grid(row=0, column=0, sticky="ew")
+
+            # Col 1 — Issue Link (clickable)
+            link_short = (link[:62] + "…") if len(link) > 62 else (link or "—")
+            lnk_lbl = tk.Label(row_frame, text=link_short,
+                               bg=row_bg,
+                               fg=BLUE if link else TEXT_MUT,
+                               font=("Segoe UI", 10,
+                                     "underline" if link else "normal"),
+                               anchor="w", padx=14, pady=11,
+                               cursor="hand2" if link else "arrow")
+            lnk_lbl.grid(row=0, column=1, sticky="ew")
+            if link:
+                lnk_lbl.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
+
+            # Col 2 — Tracker Name badge (centred)
+            badge_cell = tk.Frame(row_frame, bg=row_bg)
+            badge_cell.grid(row=0, column=2, sticky="ew", padx=10, pady=7)
+            bdg = tk.Frame(badge_cell, bg="#eef2ff",
+                           highlightbackground="#c7d2fe", highlightthickness=1)
+            bdg.pack(anchor="center")
+            tk.Label(bdg, text=f"  {TRACKER_NAME}  ",
+                     bg="#eef2ff", fg="#4f46e5",
+                     font=("Segoe UI", 9, "bold"), pady=5).pack()
+
+            # row separator
+            tk.Frame(grid_wrap, bg=BORDER, height=1).grid(
+                row=sep_ri, column=0, columnspan=3, sticky="ew")
+
+
+
+
 
     def _go_back(self):
         self.root.after(0, lambda: switch_to(ProjectPage))
