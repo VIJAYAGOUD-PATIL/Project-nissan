@@ -1901,52 +1901,132 @@ class DashboardWindow:
             btn.bind("<Enter>", lambda e, b=btn, h=hover_col: b.config(bg=h))
             btn.bind("<Leave>", lambda e, b=btn, c=bg_col:    b.config(bg=c))
 
-        # Column headers
-        hdr = tk.Frame(tcard, bg="#e8eaed")
-        hdr.pack(fill="x")
-        for txt, w in [("Issue ID", 14), ("Issue Link", 52), ("Tracker Name", 20)]:
-            tk.Label(hdr, text=txt, bg="#e8eaed", fg=TEXT_SEC,
+        # ── Grid table (perfect column alignment) ─────────────────────
+        # Columns: 0=Issue ID  1=Issue Link  2=Tracker Name  3=Actions
+        grid_wrap = tk.Frame(tcard, bg=SURFACE)
+        grid_wrap.pack(fill="x")
+        grid_wrap.columnconfigure(0, minsize=120, weight=0)
+        grid_wrap.columnconfigure(1, weight=1,    minsize=260)
+        grid_wrap.columnconfigure(2, minsize=160, weight=0)
+        grid_wrap.columnconfigure(3, minsize=175, weight=0)
+
+        # Header row
+        hdr_row = tk.Frame(grid_wrap, bg="#e8eaed")
+        hdr_row.grid(row=0, column=0, columnspan=4, sticky="ew")
+        hdr_row.columnconfigure(0, minsize=120, weight=0)
+        hdr_row.columnconfigure(1, weight=1,    minsize=260)
+        hdr_row.columnconfigure(2, minsize=160, weight=0)
+        hdr_row.columnconfigure(3, minsize=175, weight=0)
+        for col_i, txt in [(0, "Issue ID"), (1, "Issue Link"),
+                           (2, "Tracker Name"), (3, "Actions")]:
+            anchor = "center" if col_i == 3 else "w"
+            tk.Label(hdr_row, text=txt, bg="#e8eaed", fg=TEXT_SEC,
                      font=("Segoe UI", 10, "bold"),
-                     width=w, anchor="w"
-                     ).pack(side="left", padx=8, pady=10)
+                     anchor=anchor, padx=12, pady=10
+                     ).grid(row=0, column=col_i, sticky="ew")
+        tk.Frame(grid_wrap, bg=BORDER, height=1).grid(
+            row=1, column=0, columnspan=4, sticky="ew")
+
+        # Action helpers
+        def _open_defect(url):
+            if url:
+                webbrowser.open(url)
+            else:
+                messagebox.showinfo("Open", "No Issue Link available for this defect.")
+
+        def _modify_defect(url):
+            if not url:
+                messagebox.showinfo("Modify", "No Issue Link available for this defect.")
+                return
+            self._switch_page("modify")
+            def _inject():
+                def _fill(w, u):
+                    if isinstance(w, tk.Entry):
+                        try:
+                            w.delete(0, "end")
+                            w.insert(0, u)
+                        except Exception:
+                            pass
+                    for c in w.winfo_children():
+                        _fill(c, u)
+                for widget in self._main.winfo_children():
+                    _fill(widget, url)
+            self.root.after(200, _inject)
 
         # Data rows
         for i, d in enumerate(reversed(defects)):
-            row_bg = SURFACE if i % 2 == 0 else "#fafbfc"
-            row = tk.Frame(tcard, bg=row_bg,
-                           highlightbackground=BORDER, highlightthickness=1)
-            row.pack(fill="x", padx=0, pady=1)
-            inner2 = tk.Frame(row, bg=row_bg)
-            inner2.pack(fill="x", padx=8, pady=9)
+            grid_ri = i * 2 + 2
+            sep_ri  = grid_ri + 1
+            row_bg  = SURFACE if i % 2 == 0 else "#fafbfc"
+            link    = d.get("link", "")
+            issue_id = d.get("cb_id") or f"#{d.get('id','?')}"
 
-            # Issue ID
-            issue_id_text = d.get("cb_id") or f"#{d.get('id','?')}"
-            tk.Label(inner2, text=issue_id_text,
+            row_frame = tk.Frame(grid_wrap, bg=row_bg)
+            row_frame.grid(row=grid_ri, column=0, columnspan=4, sticky="ew")
+            row_frame.columnconfigure(0, minsize=120, weight=0)
+            row_frame.columnconfigure(1, weight=1,    minsize=260)
+            row_frame.columnconfigure(2, minsize=160, weight=0)
+            row_frame.columnconfigure(3, minsize=175, weight=0)
+
+            # Col 0 — Issue ID
+            tk.Label(row_frame, text=issue_id,
                      bg=row_bg, fg=TEXT_PRI,
-                     font=("Segoe UI", 10, "bold"), width=14, anchor="w"
-                     ).pack(side="left", padx=4)
+                     font=("Segoe UI", 10, "bold"),
+                     anchor="w", padx=12, pady=11
+                     ).grid(row=0, column=0, sticky="ew")
 
-            # Issue Link (clickable)
-            link = d.get("link", "")
-            link_short = (link[:60] + "…") if len(link) > 60 else link
-            lnk_lbl = tk.Label(inner2, text=link_short or "—",
-                                bg=row_bg,
-                                fg=BLUE if link else TEXT_MUT,
-                                font=("Segoe UI", 10,
-                                      "underline" if link else "normal"),
-                                width=52, anchor="w",
-                                cursor="hand2" if link else "arrow")
-            lnk_lbl.pack(side="left", padx=4)
+            # Col 1 — Issue Link
+            link_short = (link[:54] + "…") if len(link) > 54 else (link or "—")
+            lnk = tk.Label(row_frame, text=link_short,
+                           bg=row_bg,
+                           fg=BLUE if link else TEXT_MUT,
+                           font=("Segoe UI", 10, "underline" if link else "normal"),
+                           anchor="w", padx=12, pady=11,
+                           cursor="hand2" if link else "arrow")
+            lnk.grid(row=0, column=1, sticky="ew")
             if link:
-                lnk_lbl.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
+                lnk.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
 
-            # Tracker Name badge
-            badge = tk.Frame(inner2, bg="#f0f2f5",
-                             highlightbackground=BORDER, highlightthickness=1)
-            badge.pack(side="left", padx=4)
+            # Col 2 — Tracker Name badge (centred)
+            badge_cell = tk.Frame(row_frame, bg=row_bg)
+            badge_cell.grid(row=0, column=2, sticky="ew", padx=10, pady=7)
+            badge = tk.Frame(badge_cell, bg="#eef2ff",
+                             highlightbackground="#c7d2fe", highlightthickness=1)
+            badge.pack(anchor="center")
             tk.Label(badge, text=f"  {TRACKER_NAME}  ",
-                     bg="#f0f2f5", fg=TEXT_SEC,
-                     font=("Segoe UI", 9), pady=4).pack()
+                     bg="#eef2ff", fg="#4f46e5",
+                     font=("Segoe UI", 9, "bold"), pady=5).pack()
+
+            # Col 3 — Open + Modify buttons (centred)
+            btn_cell = tk.Frame(row_frame, bg=row_bg)
+            btn_cell.grid(row=0, column=3, sticky="ew", padx=10, pady=7)
+            inner_btns = tk.Frame(btn_cell, bg=row_bg)
+            inner_btns.pack(anchor="center")
+
+            ob = tk.Button(inner_btns, text="↗ Open",
+                           bg="#0891b2", fg="#fff",
+                           font=("Segoe UI", 9, "bold"),
+                           relief="flat", cursor="hand2",
+                           padx=10, pady=5,
+                           command=lambda u=link: _open_defect(u))
+            ob.pack(side="left", padx=(0, 6))
+            ob.bind("<Enter>", lambda e, b=ob: b.config(bg="#0e7490"))
+            ob.bind("<Leave>", lambda e, b=ob: b.config(bg="#0891b2"))
+
+            mb = tk.Button(inner_btns, text="✎ Modify",
+                           bg=self._color, fg="#fff",
+                           font=("Segoe UI", 9, "bold"),
+                           relief="flat", cursor="hand2",
+                           padx=10, pady=5,
+                           command=lambda u=link: _modify_defect(u))
+            mb.pack(side="left")
+            mb.bind("<Enter>", lambda e, b=mb: b.config(bg=BRAND_DARK))
+            mb.bind("<Leave>", lambda e, b=mb: b.config(bg=self._color))
+
+            # Row separator
+            tk.Frame(grid_wrap, bg=BORDER, height=1).grid(
+                row=sep_ri, column=0, columnspan=4, sticky="ew")
+
 
     # ════════════════════════════════════════════════════════════════════
     #  RESULTS
