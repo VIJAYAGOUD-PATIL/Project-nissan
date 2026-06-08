@@ -1647,44 +1647,60 @@ class DashboardWindow:
         result_frame.pack(fill="x", pady=(16, 0))
 
         def _on_modify_result(res):
-            """Called from background thread; schedule UI update on main thread."""
+            """Called from background thread - schedule on main thread."""
             def _update():
-                edit_btn.config(state="normal", text="✎ Edit Defect")
-                status_lbl.config(text="")
+                try:
+                    if edit_btn.winfo_exists():
+                        edit_btn.config(state="normal", text="✎ Edit Defect")
+                except Exception:
+                    pass
+                try:
+                    if status_lbl.winfo_exists():
+                        status_lbl.config(text="")
+                except Exception:
+                    pass
 
                 if res.get("error"):
-                    status_lbl.config(text=f"✗ Error:\n{res['error']}", fg=RED_C)
+                    try:
+                        if status_lbl.winfo_exists():
+                            status_lbl.config(text=f"✗ Error:\n{res['error']}", fg=RED_C)
+                    except Exception:
+                        messagebox.showerror("Modify Error", res["error"])
                     return
 
-                # Show success card
-                for w in result_frame.winfo_children():
-                    w.destroy()
-
-                rc = tk.Frame(result_frame, bg=SURFACE,
-                              highlightbackground=GREEN, highlightthickness=2)
-                rc.pack(fill="x")
-                tk.Frame(rc, bg=GREEN, height=5).pack(fill="x")
-                tk.Label(rc, text="✔  Defect Edited Successfully",
-                         bg=SURFACE, fg=GREEN,
-                         font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=24, pady=(18, 6))
-
-                final_link = res.get("link", "")
-                if final_link:
-                    r = tk.Frame(rc, bg=SURFACE)
-                    r.pack(fill="x", padx=24, pady=5)
-                    tk.Label(r, text="Issue Link:", bg=SURFACE, fg=TEXT_SEC,
-                             font=("Segoe UI", 10, "bold"), width=14,
-                             anchor="w").pack(side="left")
-                    lnk = tk.Label(r, text=final_link, bg=SURFACE, fg=BLUE,
-                                   font=("Segoe UI", 10, "underline"),
-                                   cursor="hand2", wraplength=400, justify="left", anchor="w")
-                    lnk.pack(side="left", fill="x", expand=True)
-                    lnk.bind("<Button-1>", lambda e: webbrowser.open(final_link))
-
-                tk.Frame(rc, bg=BORDER, height=1).pack(fill="x", padx=24, pady=10)
-                tk.Label(rc, text="✔  Browser closed after Save was detected.",
-                         bg=SURFACE, fg=GREEN,
-                         font=("Segoe UI", 10)).pack(anchor="w", padx=24, pady=(0, 18))
+                try:
+                    if result_frame.winfo_exists():
+                        for w in result_frame.winfo_children():
+                            w.destroy()
+                        rc = tk.Frame(result_frame, bg=SURFACE,
+                                      highlightbackground=GREEN, highlightthickness=2)
+                        rc.pack(fill="x")
+                        tk.Frame(rc, bg=GREEN, height=5).pack(fill="x")
+                        tk.Label(rc, text="✔  Defect Modified Successfully",
+                                 bg=SURFACE, fg=GREEN,
+                                 font=("Segoe UI", 14, "bold")
+                                 ).pack(anchor="w", padx=24, pady=(18, 6))
+                        final_link = res.get("link", "")
+                        if final_link:
+                            r = tk.Frame(rc, bg=SURFACE)
+                            r.pack(fill="x", padx=24, pady=5)
+                            tk.Label(r, text="Issue Link:", bg=SURFACE, fg=TEXT_SEC,
+                                     font=("Segoe UI", 10, "bold"), width=14,
+                                     anchor="w").pack(side="left")
+                            lnk = tk.Label(r, text=final_link, bg=SURFACE, fg=BLUE,
+                                           font=("Segoe UI", 10, "underline"),
+                                           cursor="hand2", wraplength=420,
+                                           justify="left", anchor="w")
+                            lnk.pack(side="left", fill="x", expand=True)
+                            lnk.bind("<Button-1>", lambda e, u=final_link: webbrowser.open(u))
+                        tk.Frame(rc, bg=BORDER, height=1).pack(fill="x", padx=24, pady=10)
+                        tk.Label(rc, text="✔  Changes saved in CodeBeamer.",
+                                 bg=SURFACE, fg=GREEN,
+                                 font=("Segoe UI", 10)
+                                 ).pack(anchor="w", padx=24, pady=(0, 18))
+                except Exception:
+                    messagebox.showinfo("Modify Successful",
+                                        "✔  Defect modified successfully in CodeBeamer.")
 
             self.root.after(0, _update)
 
@@ -2097,20 +2113,15 @@ class DashboardWindow:
 
 
     # ════════════════════════════════════════════════════════════════════
-    #  RESULTS  — intentionally empty
+    #  RESULTS
     # ════════════════════════════════════════════════════════════════════
     def _page_results(self):
-        self._topbar("Results", f"Project {self.project.upper()}")
-        tk.Frame(self._main, bg=BG).grid(row=1, column=0, sticky="nsew")
-
-    def _page_results_UNUSED(self):
-        TRACKER_NAME = "Internal Tracker"
         defects = self._proj_defects()
         total   = len(defects)
-        self._topbar("Results",
-                     f"Defect summary for Project {self.project.upper()}")
 
-        # ── Scrollable outer ──────────────────────────────────────────
+        self._topbar("Results",
+                     f"{total} defect(s) in Project {self.project.upper()}")
+
         scroll_outer = tk.Frame(self._main, bg=BG)
         scroll_outer.grid(row=1, column=0, sticky="nsew")
         scroll_outer.columnconfigure(0, weight=1)
@@ -2129,94 +2140,77 @@ class DashboardWindow:
         canvas.bind("<Button-4>",   lambda e: canvas.yview_scroll(-1, "units"))
         canvas.bind("<Button-5>",   lambda e: canvas.yview_scroll(1,  "units"))
 
-        # ── Total Defects summary badge ───────────────────────────────
-        summary_wrap = tk.Frame(inner, bg=BG)
-        summary_wrap.pack(fill="x", padx=36, pady=(30, 0))
-
-        badge = tk.Frame(summary_wrap, bg=SURFACE,
-                         highlightbackground=BORDER, highlightthickness=1)
-        badge.pack(anchor="w")
-        tk.Frame(badge, bg=self._color, height=4).pack(fill="x")
-        badge_inner = tk.Frame(badge, bg=SURFACE)
-        badge_inner.pack(padx=28, pady=18)
-
-        tk.Label(badge_inner, text="📋", bg=SURFACE,
-                 font=("Segoe UI", 26)).pack(side="left", padx=(0, 16))
-        tk.Label(badge_inner, text=str(total), bg=SURFACE, fg=self._color,
-                 font=("Segoe UI", 36, "bold")).pack(side="left")
-        tk.Label(badge_inner, text="  Total Defects", bg=SURFACE, fg=TEXT_SEC,
-                 font=("Segoe UI", 14)).pack(side="left", padx=(4, 0))
-
         # ── Table card ────────────────────────────────────────────────
         tcard = tk.Frame(inner, bg=SURFACE,
                          highlightbackground=BORDER, highlightthickness=1)
-        tcard.pack(fill="x", padx=36, pady=28)
+        tcard.pack(fill="x", padx=36, pady=30)
 
-        # Header bar
+        # Coloured header bar
         thdr = tk.Frame(tcard, bg=self._color)
         thdr.pack(fill="x")
-        tk.Label(thdr, text="  ☰  Defect List",
+        tk.Label(thdr, text="  ☰  Defect Results",
                  bg=self._color, fg="#fff",
-                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=16, pady=10)
-        tk.Label(thdr, text=f"  🗂  {TRACKER_NAME}  ",
-                 bg=self._color, fg="#ffe0e8",
-                 font=("Segoe UI", 10)).pack(side="left", padx=(0, 16), pady=10)
+                 font=("Segoe UI", 12, "bold")).pack(side="left", padx=16, pady=11)
         tk.Label(thdr, text=f"{total} record(s)",
                  bg=self._color, fg="#ffe0e8",
-                 font=("Segoe UI", 10)).pack(side="right", padx=16, pady=10)
+                 font=("Segoe UI", 10)).pack(side="right", padx=16, pady=11)
 
         if not defects:
             empty = tk.Frame(tcard, bg=SURFACE)
-            empty.pack(pady=48)
+            empty.pack(pady=52)
             tk.Label(empty, text="📭  No defects logged yet.",
                      bg=SURFACE, fg=TEXT_SEC,
                      font=("Segoe UI", 13)).pack()
             return
 
-        # ── Grid table — 3 columns: Issue ID | Issue Link | Tracker Name ──
-        # Col weights: 0=fixed  1=stretches  2=fixed
-        COL_W = [120, 0, 180]   # 0 = flexible (weight=1)
+        # ── Grid: col 0 = Issue ID (fixed)
+        #         col 1 = Issue Link (stretches)
+        #         col 2 = Created Date (fixed)
+        ID_W   = 130
+        DATE_W = 130
 
         grid_wrap = tk.Frame(tcard, bg=SURFACE)
         grid_wrap.pack(fill="x")
-        grid_wrap.columnconfigure(0, minsize=COL_W[0], weight=0)
-        grid_wrap.columnconfigure(1, weight=1,          minsize=260)
-        grid_wrap.columnconfigure(2, minsize=COL_W[2],  weight=0)
+        grid_wrap.columnconfigure(0, minsize=ID_W,   weight=0)
+        grid_wrap.columnconfigure(1, weight=1,        minsize=280)
+        grid_wrap.columnconfigure(2, minsize=DATE_W,  weight=0)
 
-        # ── Column header row ─────────────────────────────────────────
+        # Column header row
         hdr_row = tk.Frame(grid_wrap, bg="#e8eaed")
         hdr_row.grid(row=0, column=0, columnspan=3, sticky="ew")
-        hdr_row.columnconfigure(0, minsize=COL_W[0], weight=0)
-        hdr_row.columnconfigure(1, weight=1,          minsize=260)
-        hdr_row.columnconfigure(2, minsize=COL_W[2],  weight=0)
+        hdr_row.columnconfigure(0, minsize=ID_W,   weight=0)
+        hdr_row.columnconfigure(1, weight=1,        minsize=280)
+        hdr_row.columnconfigure(2, minsize=DATE_W,  weight=0)
 
         for ci, (txt, anc) in enumerate([
-            ("Issue ID",     "w"),
-            ("Issue Link",   "w"),
-            ("Tracker Name", "center"),
+            ("Issue ID",      "w"),
+            ("Issue Link",    "w"),
+            ("Created Date",  "center"),
         ]):
-            tk.Label(hdr_row, text=txt, bg="#e8eaed", fg=TEXT_SEC,
+            tk.Label(hdr_row, text=txt,
+                     bg="#e8eaed", fg=TEXT_SEC,
                      font=("Segoe UI", 10, "bold"),
                      anchor=anc, padx=14, pady=10
                      ).grid(row=0, column=ci, sticky="ew")
 
-        # separator below header
+        # Separator under header
         tk.Frame(grid_wrap, bg=BORDER, height=1).grid(
             row=1, column=0, columnspan=3, sticky="ew")
 
-        # ── Data rows ─────────────────────────────────────────────────
+        # Data rows
         for i, d in enumerate(reversed(defects)):
             grid_ri = i * 2 + 2
             sep_ri  = grid_ri + 1
             row_bg  = SURFACE if i % 2 == 0 else "#fafbfc"
             link     = d.get("link", "")
             issue_id = d.get("cb_id") or f"#{d.get('id', '?')}"
+            created  = d.get("created", "—")
 
             row_frame = tk.Frame(grid_wrap, bg=row_bg)
             row_frame.grid(row=grid_ri, column=0, columnspan=3, sticky="ew")
-            row_frame.columnconfigure(0, minsize=COL_W[0], weight=0)
-            row_frame.columnconfigure(1, weight=1,          minsize=260)
-            row_frame.columnconfigure(2, minsize=COL_W[2],  weight=0)
+            row_frame.columnconfigure(0, minsize=ID_W,  weight=0)
+            row_frame.columnconfigure(1, weight=1,       minsize=280)
+            row_frame.columnconfigure(2, minsize=DATE_W, weight=0)
 
             # Col 0 — Issue ID
             tk.Label(row_frame, text=issue_id,
@@ -2225,8 +2219,8 @@ class DashboardWindow:
                      anchor="w", padx=14, pady=11
                      ).grid(row=0, column=0, sticky="ew")
 
-            # Col 1 — Issue Link (clickable)
-            link_short = (link[:62] + "…") if len(link) > 62 else (link or "—")
+            # Col 1 — Issue Link (clickable blue)
+            link_short = (link[:65] + "…") if len(link) > 65 else (link or "—")
             lnk_lbl = tk.Label(row_frame, text=link_short,
                                bg=row_bg,
                                fg=BLUE if link else TEXT_MUT,
@@ -2238,19 +2232,18 @@ class DashboardWindow:
             if link:
                 lnk_lbl.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
 
-            # Col 2 — Tracker Name badge (centred)
-            badge_cell = tk.Frame(row_frame, bg=row_bg)
-            badge_cell.grid(row=0, column=2, sticky="ew", padx=10, pady=7)
-            bdg = tk.Frame(badge_cell, bg="#eef2ff",
-                           highlightbackground="#c7d2fe", highlightthickness=1)
-            bdg.pack(anchor="center")
-            tk.Label(bdg, text=f"  {TRACKER_NAME}  ",
-                     bg="#eef2ff", fg="#4f46e5",
-                     font=("Segoe UI", 9, "bold"), pady=5).pack()
+            # Col 2 — Created Date (centred)
+            tk.Label(row_frame, text=created,
+                     bg=row_bg, fg=TEXT_SEC,
+                     font=("Segoe UI", 10),
+                     anchor="center", padx=14, pady=11
+                     ).grid(row=0, column=2, sticky="ew")
 
-            # row separator
+            # Row separator
             tk.Frame(grid_wrap, bg=BORDER, height=1).grid(
                 row=sep_ri, column=0, columnspan=3, sticky="ew")
+
+
 
 
 
