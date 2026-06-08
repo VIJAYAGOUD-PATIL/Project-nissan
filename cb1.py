@@ -93,15 +93,18 @@ def _run_playwright_create(cb_url, cb_user, cb_pass, callback):
 
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=False, slow_mo=200)
-            ctx     = browser.new_context()
-            page    = ctx.new_page()
+            browser = pw.chromium.launch(
+                headless=False,
+                slow_mo=200,
+                args=["--start-maximized"],
+            )
+            ctx  = browser.new_context(no_viewport=True)
+            page = ctx.new_page()
 
             # ── 1. Open CB login page ─────────────────────────────────
             page.goto(cb_url, wait_until="domcontentloaded", timeout=30_000)
 
             # ── 2. Fill login form ────────────────────────────────────
-            # CB classic: username/password inputs; try common selectors
             for sel in ['input[name="user"]', 'input[name="username"]',
                         'input[id="username"]', '#user']:
                 if page.locator(sel).count():
@@ -123,25 +126,41 @@ def _run_playwright_create(cb_url, cb_user, cb_pass, callback):
             page.wait_for_load_state("networkidle", timeout=20_000)
 
             # ── 3. Click + / New Issue button ─────────────────────────
+            # Try tooltip/title attributes first (most reliable in CB)
             plus_selectors = [
+                '[data-original-title="New Issue"]',
+                '[title="New Issue"]',
                 'a[title="New Issue"]',
+                'button[title="New Issue"]',
                 'a:has-text("New Issue")',
                 'button:has-text("New Issue")',
-                'a.btn:has-text("+")',
-                'button:has-text("+")',
-                '[data-original-title="New Issue"]',
                 '.new-issue-btn',
                 '#new-issue',
+                'a.btn:has-text("+")',
+                'button:has-text("+")',
             ]
             clicked = False
             for sel in plus_selectors:
-                if page.locator(sel).count():
-                    page.click(sel)
+                loc = page.locator(sel)
+                if loc.count() > 0:
+                    loc.first.scroll_into_view_if_needed()
+                    loc.first.click()
                     clicked = True
                     break
+
             if not clicked:
-                # Fallback: find any visible + or New button
-                page.get_by_role("link", name="+").first.click()
+                # JS fallback: click the first element whose text is exactly "+"
+                page.evaluate("""
+                    () => {
+                        const all = Array.from(document.querySelectorAll('a, button'));
+                        const btn = all.find(el =>
+                            el.textContent.trim() === '+' ||
+                            (el.getAttribute('title') || '').toLowerCase().includes('new issue') ||
+                            (el.getAttribute('data-original-title') || '').toLowerCase().includes('new issue')
+                        );
+                        if (btn) btn.click();
+                    }
+                """)
 
             page.wait_for_load_state("networkidle", timeout=20_000)
 
@@ -206,6 +225,129 @@ def launch_cb_create(cb_url, cb_user, cb_pass, callback):
     t = threading.Thread(
         target=_run_playwright_create,
         args=(cb_url, cb_user, cb_pass, callback),
+        daemon=True,
+    )
+    t.start()
+
+
+# ── Playwright: Modify (edit) an existing defect in CodeBeamer ────────────────
+def _run_playwright_modify(ticket_url, cb_user, cb_pass, callback):
+    """
+    Opens the given ticket URL in a headed browser.
+    - If not logged in, logs in with cb_user/cb_pass first.
+    - Clicks the Edit button.
+    - Waits for the user to make changes and click Save.
+    - Calls callback({"error": None}) on success or callback({"error": "..."}) on failure.
+    The browser stays open until Save is detected (URL change or edit form disappears).
+    """
+    try:
+        from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    except ImportError:
+        callback({"error": "playwright not installed.\nRun: pip install playwright && playwright install chromium"})
+        return
+
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(
+                headless=False,
+                slow_mo=200,
+                args=["--start-maximized"],
+            )
+            ctx  = browser.new_context(no_viewport=True)
+            page = ctx.new_page()
+
+            # 1. Navigate to ticket URL
+            page.goto(ticket_url, wait_until="domcontentloaded", timeout=30_000)
+            page.wait_for_load_state("networkidle", timeout=20_000)
+
+            # 2. Check if login is required
+            if page.locator('input[type="password"]').count() > 0:
+                for sel in ['input[name="user"]', 'input[name="username"]',
+                            'input[id="username"]', '#user']:
+                    if page.locator(sel).count():
+                        page.fill(sel, cb_user)
+                        break
+
+                for sel in ['input[name="password"]', 'input[type="password"]']:
+                    if page.locator(sel).count():
+                        page.fill(sel, cb_pass)
+                        break
+
+                for sel in ['button[type="submit"]', 'input[type="submit"]',
+                            'button:has-text("Login")', 'button:has-text("Sign in")']:
+                    if page.locator(sel).count():
+                        page.click(sel)
+                        break
+
+                page.wait_for_load_state("networkidle", timeout=20_000)
+                # After login, go back to ticket
+                page.goto(ticket_url, wait_until="domcontentloaded", timeout=30_000)
+                page.wait_for_load_state("networkidle", timeout=20_000)
+
+            # 3. Click Edit button
+            edit_selectors = [
+                'a:has-text("Edit")',
+                'button:has-text("Edit")',
+                '[data-original-title="Edit"]',
+                '[title="Edit"]',
+                'a.edit-btn',
+                '#edit-item',
+                '.edit-issue',
+                'a[href*="edit"]',
+            ]
+            clicked = False
+            for sel in edit_selectors:
+                loc = page.locator(sel)
+                if loc.count() > 0:
+                    loc.first.scroll_into_view_if_needed()
+                    loc.first.click()
+                    clicked = True
+                    break
+
+            if not clicked:
+                page.evaluate("""
+                    () => {
+                        const all = Array.from(document.querySelectorAll('a, button'));
+                        const btn = all.find(el =>
+                            el.textContent.trim().toLowerCase() === 'edit' ||
+                            (el.getAttribute('title') || '').toLowerCase() === 'edit' ||
+                            (el.getAttribute('data-original-title') || '').toLowerCase() === 'edit'
+                        );
+                        if (btn) btn.click();
+                    }
+                """)
+
+            page.wait_for_load_state("networkidle", timeout=15_000)
+
+            # 4. Wait for Save — detect URL change or Save button disappearing
+            pre_save_url = page.url
+            for tick in range(600):           # up to 10 minutes
+                page.wait_for_timeout(1000)
+                current_url = page.url
+                url_changed = current_url != pre_save_url
+                save_gone   = page.locator(
+                    'input[type="submit"][value*="Save"], button:has-text("Save")'
+                ).count() == 0
+
+                if url_changed or (save_gone and tick > 3):
+                    break
+
+            final_url = page.url
+            browser.close()
+            callback({"error": None, "link": final_url})
+
+    except Exception as exc:
+        callback({"error": str(exc)})
+
+
+def launch_cb_modify(ticket_url, cb_user, cb_pass, callback):
+    """Runs Playwright modify in a background thread."""
+    if not ticket_url:
+        callback({"error": "Please enter a ticket URL."})
+        return
+    t = threading.Thread(
+        target=_run_playwright_modify,
+        args=(ticket_url, cb_user, cb_pass, callback),
         daemon=True,
     )
     t.start()
@@ -1413,19 +1555,28 @@ class DashboardWindow:
             f"Edit an existing defect in Project {self.project.upper()}"
         )
 
-        # MAIN AREA
-        container = tk.Frame(
-            self._main,
-            bg=BG
-        )
+        # SCROLLABLE OUTER
+        scroll_outer = tk.Frame(self._main, bg=BG)
+        scroll_outer.grid(row=1, column=0, sticky="nsew")
+        scroll_outer.columnconfigure(0, weight=1)
+        scroll_outer.rowconfigure(0, weight=1)
 
-        container.grid(
-            row=1,
-            column=0,
-            sticky="nsew",
-            padx=35,
-            pady=35
-        )
+        canvas = tk.Canvas(scroll_outer, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(scroll_outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        scroll_inner = tk.Frame(canvas, bg=BG)
+        wid = canvas.create_window((0, 0), window=scroll_inner, anchor="nw")
+        scroll_inner.bind("<Configure>",
+                          lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>",
+                    lambda e: canvas.itemconfig(wid, width=e.width))
+        canvas.bind("<MouseWheel>",
+                    lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
+
+        container = tk.Frame(scroll_inner, bg=BG)
+        container.pack(fill="x", padx=35, pady=35)
 
         # ─────────────────────────────────────────────
         # MODIFY CARD
@@ -1433,95 +1584,107 @@ class DashboardWindow:
         card = tk.Frame(
             container,
             bg="#ffffff",
-            width=500,
-            height=420,
             highlightbackground="#d9dde3",
             highlightthickness=1
         )
-
-        card.pack(anchor="nw")
-
-        card.pack_propagate(False)
+        card.pack(anchor="nw", fill="x")
 
         # TOP COLOR LINE
-        tk.Frame(
-            card,
-            bg=self._color,
-            height=6
-        ).pack(fill="x")
+        tk.Frame(card, bg=self._color, height=6).pack(fill="x")
 
         # TITLE
-        tk.Label(
-            card,
-            text="Modify Defect",
-            bg="#ffffff",
-            fg=TEXT_PRI,
-            font=("Segoe UI", 22, "bold")
-        ).pack(
-            anchor="w",
-            padx=35,
-            pady=(30, 8)
-        )
+        tk.Label(card, text="Modify Defect", bg="#ffffff", fg=TEXT_PRI,
+                 font=("Segoe UI", 22, "bold")).pack(anchor="w", padx=35, pady=(30, 8))
 
         # SUBTITLE
-        tk.Label(
-            card,
-            text=f"Project {self.project.upper()}",
-            bg="#ffffff",
-            fg=TEXT_SEC,
-            font=("Segoe UI", 12)
-        ).pack(
-            anchor="w",
-            padx=35,
-            pady=(0, 25)
-        )
+        tk.Label(card, text=f"Project {self.project.upper()}", bg="#ffffff", fg=TEXT_SEC,
+                 font=("Segoe UI", 12)).pack(anchor="w", padx=35, pady=(0, 25))
 
         # URL LABEL
-        tk.Label(
-            card,
-            text="Project URL",
-            bg="#ffffff",
-            fg=TEXT_PRI,
-            font=("Segoe UI", 11, "bold")
-        ).pack(
-            anchor="w",
-            padx=35,
-            pady=(0, 6)
-        )
+        tk.Label(card, text="Ticket URL",
+                 bg="#ffffff", fg=TEXT_PRI,
+                 font=("Segoe UI", 11, "bold")).pack(anchor="w", padx=35, pady=(0, 6))
 
-        # URL ENTRY CARD
-        url_box = tk.Frame(
-            card,
-            bg="#f8fafc",
-            highlightbackground="#d9dde3",
-            highlightthickness=1
-        )
-
-        url_box.pack(
-            fill="x",
-            padx=35,
-            pady=(0, 25),
-            ipady=8
-        )
+        # URL ENTRY
+        url_box = tk.Frame(card, bg="#f8fafc",
+                           highlightbackground="#d9dde3", highlightthickness=1)
+        url_box.pack(fill="x", padx=35, pady=(0, 25), ipady=8)
 
         url_var = tk.StringVar()
+        url_entry = tk.Entry(url_box, textvariable=url_var, bg="#f8fafc",
+                             fg=TEXT_PRI, relief="flat", font=("Segoe UI", 11),
+                             insertbackground=TEXT_PRI)
+        url_entry.pack(fill="x", padx=14, pady=6)
+        url_entry.bind("<FocusIn>",  lambda e: url_box.config(highlightbackground=self._color))
+        url_entry.bind("<FocusOut>", lambda e: url_box.config(highlightbackground="#d9dde3"))
 
-        tk.Entry(
-            url_box,
-            textvariable=url_var,
-            bg="#f8fafc",
-            fg=TEXT_PRI,
-            relief="flat",
-            font=("Segoe UI", 11),
-            insertbackground=TEXT_PRI
-        ).pack(
-            fill="x",
-            padx=14,
-            pady=6
-        )
+        # STATUS LABEL
+        status_lbl = tk.Label(card, text="", bg="#ffffff", fg=TEXT_SEC,
+                              font=("Segoe UI", 11), wraplength=420)
+        status_lbl.pack(padx=35, pady=(0, 8))
+
+        # RESULT AREA (shown after browser closes)
+        result_frame = tk.Frame(container, bg=BG)
+        result_frame.pack(fill="x", pady=(16, 0))
+
+        def _on_modify_result(res):
+            """Called from background thread; schedule UI update on main thread."""
+            def _update():
+                edit_btn.config(state="normal", text="✎ Edit Defect")
+                status_lbl.config(text="")
+
+                if res.get("error"):
+                    status_lbl.config(text=f"✗ Error:\n{res['error']}", fg=RED_C)
+                    return
+
+                # Show success card
+                for w in result_frame.winfo_children():
+                    w.destroy()
+
+                rc = tk.Frame(result_frame, bg=SURFACE,
+                              highlightbackground=GREEN, highlightthickness=2)
+                rc.pack(fill="x")
+                tk.Frame(rc, bg=GREEN, height=5).pack(fill="x")
+                tk.Label(rc, text="✔  Defect Edited Successfully",
+                         bg=SURFACE, fg=GREEN,
+                         font=("Segoe UI", 14, "bold")).pack(anchor="w", padx=24, pady=(18, 6))
+
+                final_link = res.get("link", "")
+                if final_link:
+                    r = tk.Frame(rc, bg=SURFACE)
+                    r.pack(fill="x", padx=24, pady=5)
+                    tk.Label(r, text="Issue Link:", bg=SURFACE, fg=TEXT_SEC,
+                             font=("Segoe UI", 10, "bold"), width=14,
+                             anchor="w").pack(side="left")
+                    lnk = tk.Label(r, text=final_link, bg=SURFACE, fg=BLUE,
+                                   font=("Segoe UI", 10, "underline"),
+                                   cursor="hand2", wraplength=400, justify="left", anchor="w")
+                    lnk.pack(side="left", fill="x", expand=True)
+                    lnk.bind("<Button-1>", lambda e: webbrowser.open(final_link))
+
+                tk.Frame(rc, bg=BORDER, height=1).pack(fill="x", padx=24, pady=10)
+                tk.Label(rc, text="✔  Browser closed after Save was detected.",
+                         bg=SURFACE, fg=GREEN,
+                         font=("Segoe UI", 10)).pack(anchor="w", padx=24, pady=(0, 18))
+
+            self.root.after(0, _update)
+
+        def _start_modify():
+            raw_url = url_var.get().strip()
+            if not raw_url:
+                messagebox.showerror("Validation", "Please enter a Ticket URL.")
+                url_box.config(highlightbackground=RED_C)
+                return
+            url_box.config(highlightbackground="#d9dde3")
+            edit_btn.config(state="disabled", text="⏳  Opening Browser…")
+            status_lbl.config(
+                text="Browser is opening. The Edit button will be clicked automatically.\n"
+                     "Make your changes and click Save — the browser will close.",
+                fg=TEXT_SEC)
+            launch_cb_modify(raw_url, CB_USERNAME, CB_PASSWORD, _on_modify_result)
 
         # EDIT BUTTON
-        tk.Button(
+        edit_btn = tk.Button(
             card,
             text="✎ Edit Defect",
             bg=self._color,
@@ -1533,12 +1696,12 @@ class DashboardWindow:
             cursor="hand2",
             font=("Segoe UI", 13, "bold"),
             padx=20,
-            pady=14
-        ).pack(
-            fill="x",
-            padx=35,
-            pady=(10, 0)
+            pady=14,
+            command=_start_modify,
         )
+        edit_btn.pack(fill="x", padx=35, pady=(10, 30))
+        edit_btn.bind("<Enter>", lambda e: edit_btn.config(bg=BRAND_DARK))
+        edit_btn.bind("<Leave>", lambda e: edit_btn.config(bg=self._color))
     # ════════════════════════════════════════════════════════════════════
     #  VIEW DEFECTS
     # ════════════════════════════════════════════════════════════════════
