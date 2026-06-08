@@ -285,37 +285,29 @@ def _run_playwright_modify(ticket_url, cb_user, cb_pass, callback):
                 page.wait_for_load_state("networkidle", timeout=20_000)
 
             # 3. Click Edit button
-            edit_selectors = [
-                'a:has-text("Edit")',
-                'button:has-text("Edit")',
-                '[data-original-title="Edit"]',
-                '[title="Edit"]',
-                'a.edit-btn',
-                '#edit-item',
-                '.edit-issue',
-                'a[href*="edit"]',
-            ]
-            clicked = False
-            for sel in edit_selectors:
-                loc = page.locator(sel)
-                if loc.count() > 0:
-                    loc.first.scroll_into_view_if_needed()
-                    loc.first.click()
-                    clicked = True
-                    break
+            # CB uses title="Edit (Alt + e)" or data-original-title="Edit (Alt + e)"
+            # so we match any element whose title/text STARTS WITH "Edit"
+            clicked = page.evaluate("""
+                () => {
+                    const candidates = Array.from(
+                        document.querySelectorAll('a, button, input[type="button"], [role="button"]')
+                    );
+                    const btn = candidates.find(el => {
+                        const title  = (el.getAttribute('title') || '').trim();
+                        const dtitle = (el.getAttribute('data-original-title') || '').trim();
+                        const text   = (el.textContent || '').trim();
+                        return title.startsWith('Edit') ||
+                               dtitle.startsWith('Edit') ||
+                               text === 'Edit';
+                    });
+                    if (btn) { btn.click(); return true; }
+                    return false;
+                }
+            """)
 
             if not clicked:
-                page.evaluate("""
-                    () => {
-                        const all = Array.from(document.querySelectorAll('a, button'));
-                        const btn = all.find(el =>
-                            el.textContent.trim().toLowerCase() === 'edit' ||
-                            (el.getAttribute('title') || '').toLowerCase() === 'edit' ||
-                            (el.getAttribute('data-original-title') || '').toLowerCase() === 'edit'
-                        );
-                        if (btn) btn.click();
-                    }
-                """)
+                # Final fallback: use the keyboard shortcut Alt+E that CB advertises
+                page.keyboard.press("Alt+e")
 
             page.wait_for_load_state("networkidle", timeout=15_000)
 
