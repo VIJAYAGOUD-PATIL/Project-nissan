@@ -177,32 +177,63 @@ def _run_playwright_create(cb_url, cb_user, cb_pass, callback):
             page.wait_for_load_state("networkidle", timeout=15_000)
 
             # ── 5. Scrape issue details ───────────────────────────────
+            import re as _re
             issue_id    = ""
             description = ""
             issue_link  = page.url
 
-            # Try common CB detail-page selectors
-            for sel in ['[data-testid="issue-id"]', '.issue-id',
-                        '.tracker-item-id', 'h1.issueId',
-                        '.issueTitle span.id', '.summary-id']:
+            # Issue ID
+            for sel in [
+                '[data-testid="issue-id"]', '.issue-id',
+                '.tracker-item-id', 'h1.issueId',
+                '.issueTitle span.id', '.summary-id',
+                'span.itemId', '.itemId', '#issueId',
+            ]:
                 if page.locator(sel).count():
                     issue_id = page.locator(sel).first.inner_text().strip()
                     break
 
-            # Fallback: extract ID from URL  e.g. /issue/12345
+            # Fallback: extract ID from URL e.g. /issue/12345
             if not issue_id:
-                import re
-                m = re.search(r'/(?:issue|item)/(\d+)', page.url)
+                m = _re.search(r'/(?:issue|item)/(\d+)', page.url)
                 if m:
                     issue_id = m.group(1)
 
-            for sel in ['[data-testid="issue-description"]',
-                        '.issue-description', '.description-content',
-                        '.summary', 'textarea[name="description"]',
-                        '#description']:
-                if page.locator(sel).count():
-                    description = page.locator(sel).first.inner_text().strip()
-                    break
+            # Description — try many CB selectors, then JS fallback
+            for sel in [
+                'cb-tracker-item-field[field-id="description"] .field-value',
+                'cb-rich-text-view .ql-editor',
+                '.tracker-item-description',
+                '.issue-description', '.description-content',
+                '[data-testid="issue-description"]',
+                '#description-field', '.description-field',
+                'div.fieldValue[id*="description"]',
+                '.codebeamer-field-description',
+                '.summary', 'textarea[name="description"]', '#description',
+            ]:
+                try:
+                    loc = page.locator(sel)
+                    if loc.count():
+                        txt = loc.first.inner_text().strip()
+                        if txt:
+                            description = txt
+                            break
+                except Exception:
+                    continue
+
+            # If still empty, grab page title/heading via JS
+            if not description:
+                description = page.evaluate("""
+                    () => {
+                        const h1 = document.querySelector(
+                            '.tracker-item h1, .issue-title h1, h1.itemSummary, ' +
+                            '.summary-title, .item-summary, h1'
+                        );
+                        if (h1 && h1.textContent.trim()) return h1.textContent.trim();
+                        const t = document.title || '';
+                        return t.split('|')[0].split('-')[0].trim();
+                    }
+                """) or "(no description captured)"
 
             browser.close()
 
@@ -1731,82 +1762,103 @@ class DashboardWindow:
                      font=("Segoe UI", 12)).pack(pady=(0, 60))
             return
 
-        # Table card
+        PRI_COLOR = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
+        STA_COLOR = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
+
+        # ── Column definitions: (header_text, col_weight, min_px) ─────────
+        COL_HDRS   = ["Issue ID", "Description", "Issue Link", "Priority", "Status", "Created"]
+        COL_WEIGHT = [0,           1,              1,            0,          0,         0]
+        COL_MIN    = [90,          220,             200,          90,         110,       100]
+
+        # ── Table card ────────────────────────────────────────────────────
         tcard = tk.Frame(inner, bg=SURFACE,
                          highlightbackground=BORDER, highlightthickness=1)
         tcard.pack(padx=36, pady=30, fill="x")
 
+        # Header bar
         thdr_bar = tk.Frame(tcard, bg=self._color)
         thdr_bar.pack(fill="x")
         tk.Label(thdr_bar, text="  ☰  Defect List",
                  bg=self._color, fg="#fff",
                  font=("Segoe UI", 12, "bold")).pack(side="left", padx=16, pady=10)
 
-        # Column headers
-        PRI_COLOR = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
-        STA_COLOR = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
+        # Column-header row
+        hdr_row = tk.Frame(tcard, bg="#e8eaed")
+        hdr_row.pack(fill="x")
+        for ci, (txt, wt, mn) in enumerate(zip(COL_HDRS, COL_WEIGHT, COL_MIN)):
+            hdr_row.columnconfigure(ci, weight=wt, minsize=mn)
+        for ci, txt in enumerate(COL_HDRS):
+            tk.Label(hdr_row, text=txt, bg="#e8eaed", fg=TEXT_SEC,
+                     font=("Segoe UI", 10, "bold"), anchor="w",
+                     padx=10, pady=10
+                     ).grid(row=0, column=ci, sticky="ew")
 
-        hdr = tk.Frame(tcard, bg="#e8eaed")
-        hdr.pack(fill="x", padx=0)
-        for txt, w in [("Issue ID", 10), ("Description", 30),
-                       ("Issue Link", 28), ("Priority", 10),
-                       ("Status", 12), ("Created", 12)]:
-            tk.Label(hdr, text=txt, bg="#e8eaed", fg=TEXT_SEC,
-                     font=("Segoe UI", 10, "bold"),
-                     width=w, anchor="w"
-                     ).pack(side="left", padx=4, pady=10)
+        # Data rows — each defect is one row, columns grid-aligned
+        for ri, d in enumerate(reversed(defects)):
+            row_bg = SURFACE if ri % 2 == 0 else "#fafbfc"
+            drow = tk.Frame(tcard, bg=row_bg,
+                            highlightbackground=BORDER, highlightthickness=1)
+            drow.pack(fill="x", pady=1)
+            for ci, (wt, mn) in enumerate(zip(COL_WEIGHT, COL_MIN)):
+                drow.columnconfigure(ci, weight=wt, minsize=mn)
 
-        for i, d in enumerate(reversed(defects)):
-            row_bg = SURFACE if i % 2 == 0 else "#fafbfc"
-            row = tk.Frame(tcard, bg=row_bg,
-                           highlightbackground=BORDER, highlightthickness=1)
-            row.pack(fill="x", padx=0, pady=1)
-            inner2 = tk.Frame(row, bg=row_bg)
-            inner2.pack(fill="x", padx=4, pady=8)
-
-            pri = d.get("priority", "Minor")
-            sta = d.get("status",   "Open")
-            pc  = PRI_COLOR.get(pri, TEXT_SEC)
-            sc  = STA_COLOR.get(sta, TEXT_SEC)
-
-            # Issue ID (cb_id preferred, fallback to #id)
-            issue_id_text = d.get("cb_id") or f"#{d.get('id','?')}"
-            tk.Label(inner2, text=issue_id_text,
-                     bg=row_bg, fg=TEXT_PRI,
-                     font=("Segoe UI", 10, "bold"), width=10, anchor="w"
-                     ).pack(side="left", padx=4)
-
-            # Description
-            desc = d.get("description", d.get("title", "—"))
-            tk.Label(inner2, text=desc[:40] + ("…" if len(desc) > 40 else ""),
-                     bg=row_bg, fg=TEXT_PRI,
-                     font=("Segoe UI", 10), width=30, anchor="w"
-                     ).pack(side="left", padx=4)
-
-            # Issue Link (clickable)
+            pri  = d.get("priority", "Minor")
+            sta  = d.get("status",   "Open")
+            pc   = PRI_COLOR.get(pri, TEXT_SEC)
+            sc   = STA_COLOR.get(sta, TEXT_SEC)
             link = d.get("link", "")
-            link_short = link[:35] + "…" if len(link) > 35 else link
-            lnk_lbl = tk.Label(inner2, text=link_short or "—",
-                                bg=row_bg, fg=BLUE if link else TEXT_MUT,
+            desc = d.get("description", d.get("title", "—"))
+            issue_id_text = d.get("cb_id") or f"#{d.get('id','?')}"
+
+            def cell(parent, text, col, fg=TEXT_PRI, font=("Segoe UI", 10), **kw):
+                tk.Label(parent, text=text, bg=row_bg, fg=fg,
+                         font=font, anchor="w", padx=10, pady=10, **kw
+                         ).grid(row=0, column=col, sticky="ew")
+
+            # Col 0: Issue ID
+            cell(drow, issue_id_text, 0, font=("Segoe UI", 10, "bold"))
+
+            # Col 1: Description (truncated)
+            short_desc = desc[:45] + ("…" if len(desc) > 45 else "")
+            cell(drow, short_desc, 1)
+
+            # Col 2: Issue Link (clickable)
+            link_short = (link[:38] + "…") if len(link) > 38 else link
+            lbl_link = tk.Label(drow, text=link_short or "—",
+                                bg=row_bg,
+                                fg=BLUE if link else TEXT_MUT,
                                 font=("Segoe UI", 10,
                                       "underline" if link else "normal"),
-                                width=28, anchor="w",
+                                anchor="w", padx=10, pady=10,
                                 cursor="hand2" if link else "arrow")
-            lnk_lbl.pack(side="left", padx=4)
+            lbl_link.grid(row=0, column=2, sticky="ew")
             if link:
-                lnk_lbl.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
+                lbl_link.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
 
-            for val, col in [(pri, pc), (sta, sc)]:
-                badge = tk.Frame(inner2, bg=col)
-                badge.pack(side="left", padx=4)
-                tk.Label(badge, text=val, bg=col, fg="#ffffff",
-                         font=("Segoe UI", 9, "bold"),
-                         padx=8, pady=3).pack()
+            # Col 3: Priority badge (label above, coloured value below)
+            pri_cell = tk.Frame(drow, bg=row_bg)
+            pri_cell.grid(row=0, column=3, sticky="ew", padx=6, pady=6)
+            tk.Label(pri_cell, text="Priority", bg=row_bg, fg=TEXT_MUT,
+                     font=("Segoe UI", 8)).pack(anchor="w")
+            badge_p = tk.Frame(pri_cell, bg=pc)
+            badge_p.pack(anchor="w")
+            tk.Label(badge_p, text=pri, bg=pc, fg="#fff",
+                     font=("Segoe UI", 9, "bold"),
+                     padx=8, pady=2).pack()
 
-            tk.Label(inner2, text=d.get("created", ""),
-                     bg=row_bg, fg=TEXT_MUT,
-                     font=("Segoe UI", 10), width=12, anchor="center"
-                     ).pack(side="left", padx=4)
+            # Col 4: Status badge (label above, coloured value below)
+            sta_cell = tk.Frame(drow, bg=row_bg)
+            sta_cell.grid(row=0, column=4, sticky="ew", padx=6, pady=6)
+            tk.Label(sta_cell, text="Status", bg=row_bg, fg=TEXT_MUT,
+                     font=("Segoe UI", 8)).pack(anchor="w")
+            badge_s = tk.Frame(sta_cell, bg=sc)
+            badge_s.pack(anchor="w")
+            tk.Label(badge_s, text=sta, bg=sc, fg="#fff",
+                     font=("Segoe UI", 9, "bold"),
+                     padx=8, pady=2).pack()
+
+            # Col 5: Created
+            cell(drow, d.get("created", ""), 5, fg=TEXT_MUT)
 
     # ════════════════════════════════════════════════════════════════════
     #  RESULTS
@@ -1884,6 +1936,13 @@ class DashboardWindow:
         ], total or 1)
 
         # ── Full defect table ─────────────────────────────────────────
+        PRI_COLOR2 = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
+        STA_COLOR2 = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
+
+        COL_HDRS2   = ["Issue ID", "Description", "Issue Link", "Priority", "Status", "Created"]
+        COL_WEIGHT2 = [0,           1,              1,            0,          0,         0]
+        COL_MIN2    = [90,          200,             180,          90,         110,       100]
+
         tbl_card = tk.Frame(inner, bg=SURFACE,
                             highlightbackground=BORDER, highlightthickness=1)
         tbl_card.pack(fill="x", padx=36, pady=(0, 36))
@@ -1892,30 +1951,72 @@ class DashboardWindow:
                  bg=SURFACE, fg=TEXT_PRI,
                  font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=22, pady=(16, 8))
 
-        cols = ("Issue ID", "Description", "Issue Link", "Priority", "Status", "Created")
-        style = ttk.Style()
-        style.configure("Treeview",         font=("Segoe UI", 10), rowheight=34)
-        style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
-        style.map("Treeview", background=[("selected", self._color)])
+        # Column-header row
+        hdr2 = tk.Frame(tbl_card, bg="#e8eaed")
+        hdr2.pack(fill="x", padx=12)
+        for ci, (txt, wt, mn) in enumerate(zip(COL_HDRS2, COL_WEIGHT2, COL_MIN2)):
+            hdr2.columnconfigure(ci, weight=wt, minsize=mn)
+        for ci, txt in enumerate(COL_HDRS2):
+            tk.Label(hdr2, text=txt, bg="#e8eaed", fg=TEXT_SEC,
+                     font=("Segoe UI", 10, "bold"), anchor="w",
+                     padx=10, pady=8).grid(row=0, column=ci, sticky="ew")
 
-        tree = ttk.Treeview(tbl_card, columns=cols,
-                             show="headings", height=min(max(len(defects), 1), 14))
-        for col, w in zip(cols, [90, 240, 260, 85, 105, 105]):
-            tree.heading(col, text=col)
-            tree.column(col, width=w, anchor="w")
-        tree.pack(fill="x", padx=20, pady=(0, 20))
+        # Data rows
+        for ri, d in enumerate(reversed(defects)):
+            rb = SURFACE if ri % 2 == 0 else "#fafbfc"
+            drow2 = tk.Frame(tbl_card, bg=rb,
+                             highlightbackground=BORDER, highlightthickness=1)
+            drow2.pack(fill="x", padx=12, pady=1)
+            for ci, (wt, mn) in enumerate(zip(COL_WEIGHT2, COL_MIN2)):
+                drow2.columnconfigure(ci, weight=wt, minsize=mn)
 
-        for d in reversed(defects):
-            issue_id_text = d.get("cb_id") or f"#{d.get('id','?')}"
-            desc = d.get("description", d.get("title", "—"))
-            tree.insert("", "end", values=(
-                issue_id_text,
-                desc[:50] + ("…" if len(desc) > 50 else ""),
-                d.get("link", "—"),
-                d.get("priority", ""),
-                d.get("status", ""),
-                d.get("created", ""),
-            ))
+            pri2 = d.get("priority", "Minor")
+            sta2 = d.get("status",   "Open")
+            pc2  = PRI_COLOR2.get(pri2, TEXT_SEC)
+            sc2  = STA_COLOR2.get(sta2, TEXT_SEC)
+            link2 = d.get("link", "")
+            desc2 = d.get("description", d.get("title", "—"))
+            iid2  = d.get("cb_id") or f"#{d.get('id','?')}"
+
+            def cell2(parent, text, col, fg=TEXT_PRI, font=("Segoe UI", 10), rb=rb):
+                tk.Label(parent, text=text, bg=rb, fg=fg,
+                         font=font, anchor="w", padx=10, pady=9
+                         ).grid(row=0, column=col, sticky="ew")
+
+            cell2(drow2, iid2, 0, font=("Segoe UI", 10, "bold"))
+            cell2(drow2, desc2[:45] + ("…" if len(desc2) > 45 else ""), 1)
+
+            ll2 = (link2[:36] + "…") if len(link2) > 36 else link2
+            lbl2 = tk.Label(drow2, text=ll2 or "—", bg=rb,
+                            fg=BLUE if link2 else TEXT_MUT,
+                            font=("Segoe UI", 10, "underline" if link2 else "normal"),
+                            anchor="w", padx=10, pady=9,
+                            cursor="hand2" if link2 else "arrow")
+            lbl2.grid(row=0, column=2, sticky="ew")
+            if link2:
+                lbl2.bind("<Button-1>", lambda e, u=link2: webbrowser.open(u))
+
+            # Priority: label + coloured badge stacked
+            pc_cell = tk.Frame(drow2, bg=rb)
+            pc_cell.grid(row=0, column=3, sticky="ew", padx=6, pady=6)
+            tk.Label(pc_cell, text="Priority", bg=rb, fg=TEXT_MUT,
+                     font=("Segoe UI", 8)).pack(anchor="w")
+            bp = tk.Frame(pc_cell, bg=pc2)
+            bp.pack(anchor="w")
+            tk.Label(bp, text=pri2, bg=pc2, fg="#fff",
+                     font=("Segoe UI", 9, "bold"), padx=8, pady=2).pack()
+
+            # Status: label + coloured badge stacked
+            sc_cell = tk.Frame(drow2, bg=rb)
+            sc_cell.grid(row=0, column=4, sticky="ew", padx=6, pady=6)
+            tk.Label(sc_cell, text="Status", bg=rb, fg=TEXT_MUT,
+                     font=("Segoe UI", 8)).pack(anchor="w")
+            bs = tk.Frame(sc_cell, bg=sc2)
+            bs.pack(anchor="w")
+            tk.Label(bs, text=sta2, bg=sc2, fg="#fff",
+                     font=("Segoe UI", 9, "bold"), padx=8, pady=2).pack()
+
+            cell2(drow2, d.get("created", ""), 5, fg=TEXT_MUT)
 
     def _bar_card(self, parent, col, title, items, total):
         card = tk.Frame(parent, bg=SURFACE,
