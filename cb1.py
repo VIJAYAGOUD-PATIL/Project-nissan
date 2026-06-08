@@ -1688,9 +1688,157 @@ class DashboardWindow:
     #  VIEW DEFECTS
     # ════════════════════════════════════════════════════════════════════
     def _page_view(self):
+        TRACKER_NAME = "Internal Tracker"
         defects = self._proj_defects()
         self._topbar("View Defects",
                      f"{len(defects)} defect(s) logged in Project {self.project.upper()}")
+
+        # ── Export helpers ─────────────────────────────────────────────
+        def _rows_for_export():
+            rows = []
+            for d in reversed(defects):
+                rows.append({
+                    "Issue ID":     d.get("cb_id") or f"#{d.get('id','?')}",
+                    "Issue Link":   d.get("link", ""),
+                    "Tracker Name": TRACKER_NAME,
+                })
+            return rows
+
+        def _export_excel():
+            try:
+                import openpyxl
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            except ImportError:
+                messagebox.showerror(
+                    "Missing library",
+                    "openpyxl is required for Excel export.\n"
+                    "Run: pip install openpyxl")
+                return
+            from tkinter import filedialog
+            path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel Workbook", "*.xlsx")],
+                initialfile=f"defects_{self.project}.xlsx")
+            if not path:
+                return
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Defects"
+            hdr_fill = PatternFill("solid", fgColor="A50034")
+            hdr_font = Font(bold=True, color="FFFFFF", size=11)
+            thin = Side(style="thin", color="D0D0D0")
+            border = Border(left=thin, right=thin, top=thin, bottom=thin)
+            cols = ["Issue ID", "Issue Link", "Tracker Name"]
+            col_widths = [18, 55, 22]
+            for ci, (col, w) in enumerate(zip(cols, col_widths), 1):
+                cell = ws.cell(row=1, column=ci, value=col)
+                cell.fill = hdr_fill
+                cell.font = hdr_font
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.border = border
+                ws.column_dimensions[openpyxl.utils.get_column_letter(ci)].width = w
+            ws.row_dimensions[1].height = 22
+            for ri, row in enumerate(_rows_for_export(), 2):
+                for ci, col in enumerate(cols, 1):
+                    val = row[col]
+                    cell = ws.cell(row=ri, column=ci, value=val)
+                    cell.border = border
+                    cell.alignment = Alignment(vertical="center", wrap_text=True)
+                    if ci == 2 and val:
+                        cell.hyperlink = val
+                        cell.font = Font(color="2563EB", underline="single")
+                ws.row_dimensions[ri].height = 18
+            ws.freeze_panes = "A2"
+            wb.save(path)
+            messagebox.showinfo("Export", f"Excel saved:\n{path}")
+
+        def _export_pdf():
+            try:
+                from reportlab.lib.pagesizes import A4, landscape
+                from reportlab.lib import colors
+                from reportlab.lib.units import cm
+                from reportlab.platypus import (SimpleDocTemplate, Table,
+                                                TableStyle, Paragraph)
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            except ImportError:
+                messagebox.showerror(
+                    "Missing library",
+                    "reportlab is required for PDF export.\n"
+                    "Run: pip install reportlab")
+                return
+            from tkinter import filedialog
+            path = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("PDF File", "*.pdf")],
+                initialfile=f"defects_{self.project}.pdf")
+            if not path:
+                return
+            doc = SimpleDocTemplate(path, pagesize=landscape(A4),
+                                    leftMargin=1.5*cm, rightMargin=1.5*cm,
+                                    topMargin=2*cm, bottomMargin=2*cm)
+            styles = getSampleStyleSheet()
+            title_style = ParagraphStyle("title", parent=styles["Heading1"],
+                                         textColor=colors.HexColor("#A50034"),
+                                         fontSize=16, spaceAfter=6)
+            sub_style   = ParagraphStyle("sub", parent=styles["Normal"],
+                                         textColor=colors.HexColor("#6b7280"),
+                                         fontSize=10, spaceAfter=14)
+            link_style  = ParagraphStyle("link", parent=styles["Normal"],
+                                         textColor=colors.HexColor("#2563eb"),
+                                         fontSize=9)
+            header_row = ["Issue ID", "Issue Link", "Tracker Name"]
+            data = [header_row]
+            for row in _rows_for_export():
+                lv = row["Issue Link"]
+                link_para = Paragraph(
+                    f'<link href="{lv}">{lv}</link>' if lv else "—", link_style)
+                data.append([row["Issue ID"], link_para, row["Tracker Name"]])
+            tbl = Table(data, colWidths=[3.5*cm, 17*cm, 5*cm], repeatRows=1)
+            tbl.setStyle(TableStyle([
+                ("BACKGROUND",  (0, 0), (-1,  0), colors.HexColor("#A50034")),
+                ("TEXTCOLOR",   (0, 0), (-1,  0), colors.white),
+                ("FONTNAME",    (0, 0), (-1,  0), "Helvetica-Bold"),
+                ("FONTSIZE",    (0, 0), (-1,  0), 10),
+                ("ALIGN",       (0, 0), (-1,  0), "CENTER"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+                 [colors.white, colors.HexColor("#f9fafb")]),
+                ("FONTNAME",    (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE",    (0, 1), (-1, -1), 9),
+                ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+                ("GRID",        (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e6ea")),
+                ("TOPPADDING",  (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ]))
+            story = [
+                Paragraph(f"Defect Report — {self.project.upper()}", title_style),
+                Paragraph(
+                    f"Tracker: {TRACKER_NAME}  ·  "
+                    f"{len(defects)} defect(s)  ·  "
+                    f"Generated: {datetime.date.today().isoformat()}",
+                    sub_style),
+                tbl,
+            ]
+            doc.build(story)
+            messagebox.showinfo("Export", f"PDF saved:\n{path}")
+
+        def _export_csv():
+            import csv
+            from tkinter import filedialog
+            path = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV File", "*.csv")],
+                initialfile=f"defects_{self.project}.csv")
+            if not path:
+                return
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(
+                    f, fieldnames=["Issue ID", "Issue Link", "Tracker Name"])
+                writer.writeheader()
+                writer.writerows(_rows_for_export())
+            messagebox.showinfo("Export", f"CSV saved:\n{path}")
+
+        # ── Scrollable area ────────────────────────────────────────────
         scroll_outer = tk.Frame(self._main, bg=BG)
         scroll_outer.grid(row=1, column=0, sticky="nsew")
         scroll_outer.columnconfigure(0, weight=1)
@@ -1721,82 +1869,84 @@ class DashboardWindow:
                      font=("Segoe UI", 12)).pack(pady=(0, 60))
             return
 
-        # Table card
+        # ── Table card ─────────────────────────────────────────────────
         tcard = tk.Frame(inner, bg=SURFACE,
                          highlightbackground=BORDER, highlightthickness=1)
         tcard.pack(padx=36, pady=30, fill="x")
 
+        # Header bar: title + tracker badge + export buttons
         thdr_bar = tk.Frame(tcard, bg=self._color)
         thdr_bar.pack(fill="x")
         tk.Label(thdr_bar, text="  ☰  Defect List",
                  bg=self._color, fg="#fff",
                  font=("Segoe UI", 12, "bold")).pack(side="left", padx=16, pady=10)
+        tk.Label(thdr_bar,
+                 text=f"  🗂  {TRACKER_NAME}  ",
+                 bg=self._color, fg="#ffe0e8",
+                 font=("Segoe UI", 10)).pack(side="left", padx=(0, 20), pady=10)
+
+        # Export buttons (right-aligned in header bar)
+        export_row = tk.Frame(thdr_bar, bg=self._color)
+        export_row.pack(side="right", padx=14, pady=8)
+        for label, cmd, bg_col, hover_col in [
+            ("⬇ Excel", _export_excel, "#16a34a", "#14532d"),
+            ("⬇ PDF",   _export_pdf,   "#dc2626", "#991b1b"),
+            ("⬇ CSV",   _export_csv,   "#2563eb", "#1d4ed8"),
+        ]:
+            btn = tk.Button(export_row, text=label, bg=bg_col, fg="#fff",
+                            font=("Segoe UI", 9, "bold"),
+                            relief="flat", cursor="hand2",
+                            padx=12, pady=5, command=cmd)
+            btn.pack(side="left", padx=4)
+            btn.bind("<Enter>", lambda e, b=btn, h=hover_col: b.config(bg=h))
+            btn.bind("<Leave>", lambda e, b=btn, c=bg_col:    b.config(bg=c))
 
         # Column headers
-        PRI_COLOR = {"Critical": RED_C, "Major": ORANGE, "Minor": BLUE, "Low": GREEN}
-        STA_COLOR = {"Open": RED_C, "In Progress": ORANGE, "Closed": GREEN, "Resolved": BLUE}
-
         hdr = tk.Frame(tcard, bg="#e8eaed")
-        hdr.pack(fill="x", padx=0)
-        for txt, w in [("Issue ID", 10), ("Description", 30),
-                       ("Issue Link", 28), ("Priority", 10),
-                       ("Status", 12), ("Created", 12)]:
+        hdr.pack(fill="x")
+        for txt, w in [("Issue ID", 14), ("Issue Link", 52), ("Tracker Name", 20)]:
             tk.Label(hdr, text=txt, bg="#e8eaed", fg=TEXT_SEC,
                      font=("Segoe UI", 10, "bold"),
                      width=w, anchor="w"
-                     ).pack(side="left", padx=4, pady=10)
+                     ).pack(side="left", padx=8, pady=10)
 
+        # Data rows
         for i, d in enumerate(reversed(defects)):
             row_bg = SURFACE if i % 2 == 0 else "#fafbfc"
             row = tk.Frame(tcard, bg=row_bg,
                            highlightbackground=BORDER, highlightthickness=1)
             row.pack(fill="x", padx=0, pady=1)
             inner2 = tk.Frame(row, bg=row_bg)
-            inner2.pack(fill="x", padx=4, pady=8)
+            inner2.pack(fill="x", padx=8, pady=9)
 
-            pri = d.get("priority", "Minor")
-            sta = d.get("status",   "Open")
-            pc  = PRI_COLOR.get(pri, TEXT_SEC)
-            sc  = STA_COLOR.get(sta, TEXT_SEC)
-
-            # Issue ID (cb_id preferred, fallback to #id)
+            # Issue ID
             issue_id_text = d.get("cb_id") or f"#{d.get('id','?')}"
             tk.Label(inner2, text=issue_id_text,
                      bg=row_bg, fg=TEXT_PRI,
-                     font=("Segoe UI", 10, "bold"), width=10, anchor="w"
-                     ).pack(side="left", padx=4)
-
-            # Description
-            desc = d.get("description", d.get("title", "—"))
-            tk.Label(inner2, text=desc[:40] + ("…" if len(desc) > 40 else ""),
-                     bg=row_bg, fg=TEXT_PRI,
-                     font=("Segoe UI", 10), width=30, anchor="w"
+                     font=("Segoe UI", 10, "bold"), width=14, anchor="w"
                      ).pack(side="left", padx=4)
 
             # Issue Link (clickable)
             link = d.get("link", "")
-            link_short = link[:35] + "…" if len(link) > 35 else link
+            link_short = (link[:60] + "…") if len(link) > 60 else link
             lnk_lbl = tk.Label(inner2, text=link_short or "—",
-                                bg=row_bg, fg=BLUE if link else TEXT_MUT,
+                                bg=row_bg,
+                                fg=BLUE if link else TEXT_MUT,
                                 font=("Segoe UI", 10,
                                       "underline" if link else "normal"),
-                                width=28, anchor="w",
+                                width=52, anchor="w",
                                 cursor="hand2" if link else "arrow")
             lnk_lbl.pack(side="left", padx=4)
             if link:
                 lnk_lbl.bind("<Button-1>", lambda e, u=link: webbrowser.open(u))
 
-            for val, col in [(pri, pc), (sta, sc)]:
-                badge = tk.Frame(inner2, bg=col)
-                badge.pack(side="left", padx=4)
-                tk.Label(badge, text=val, bg=col, fg="#ffffff",
-                         font=("Segoe UI", 9, "bold"),
-                         padx=8, pady=3).pack()
-
-            tk.Label(inner2, text=d.get("created", ""),
-                     bg=row_bg, fg=TEXT_MUT,
-                     font=("Segoe UI", 10), width=12, anchor="center"
-                     ).pack(side="left", padx=4)
+            # Tracker Name badge
+            badge = tk.Frame(inner2, bg="#f0f2f5",
+                             highlightbackground=BORDER, highlightthickness=1)
+            badge.pack(side="left", padx=4)
+            tk.Label(badge, text=f"  {TRACKER_NAME}  ",
+                     bg="#f0f2f5", fg=TEXT_SEC,
+                     font=("Segoe UI", 9), pady=4).pack()
 
     # ════════════════════════════════════════════════════════════════════
     #  RESULTS
