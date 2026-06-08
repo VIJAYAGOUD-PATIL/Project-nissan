@@ -1938,8 +1938,9 @@ class DashboardWindow:
             if not url:
                 messagebox.showinfo("Modify", "No Issue Link available for this defect.")
                 return
+            # Navigate to modify page, pre-fill URL, then auto-launch browser
             self._switch_page("modify")
-            def _inject():
+            def _inject_and_launch():
                 def _fill(w, u):
                     if isinstance(w, tk.Entry):
                         try:
@@ -1951,7 +1952,36 @@ class DashboardWindow:
                         _fill(c, u)
                 for widget in self._main.winfo_children():
                     _fill(widget, url)
-            self.root.after(200, _inject)
+                # Auto-launch Playwright to url/edit
+                def _on_modify_result_view(res):
+                    def _update():
+                        # Find and re-enable the edit button if present
+                        def _re_enable(w):
+                            if isinstance(w, tk.Button) and "Edit" in (w.cget("text") or ""):
+                                try:
+                                    w.config(state="normal", text="✎ Edit Defect")
+                                except Exception:
+                                    pass
+                            for c in w.winfo_children():
+                                _re_enable(c)
+                        for widget in self._main.winfo_children():
+                            _re_enable(widget)
+                        if res.get("error"):
+                            messagebox.showerror("Modify Error", res["error"])
+                    self.root.after(0, _update)
+                # Disable the edit button and show status
+                def _disable_btn(w):
+                    if isinstance(w, tk.Button) and "Edit" in (w.cget("text") or ""):
+                        try:
+                            w.config(state="disabled", text="⏳  Opening Browser…")
+                        except Exception:
+                            pass
+                    for c in w.winfo_children():
+                        _disable_btn(c)
+                for widget in self._main.winfo_children():
+                    _disable_btn(widget)
+                launch_cb_modify(url, CB_USERNAME, CB_PASSWORD, _on_modify_result_view)
+            self.root.after(200, _inject_and_launch)
 
         # Data rows
         for i, d in enumerate(reversed(defects)):
@@ -2103,39 +2133,7 @@ class DashboardWindow:
             ("Resolved",    sum(1 for d in defects if d.get("status") == "Resolved"), BLUE),
         ], total or 1)
 
-        # ── Full defect table ─────────────────────────────────────────
-        tbl_card = tk.Frame(inner, bg=SURFACE,
-                            highlightbackground=BORDER, highlightthickness=1)
-        tbl_card.pack(fill="x", padx=36, pady=(0, 36))
-        tk.Frame(tbl_card, bg=self._color, height=4).pack(fill="x")
-        tk.Label(tbl_card, text="All Defects",
-                 bg=SURFACE, fg=TEXT_PRI,
-                 font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=22, pady=(16, 8))
 
-        cols = ("Issue ID", "Description", "Issue Link", "Priority", "Status", "Created")
-        style = ttk.Style()
-        style.configure("Treeview",         font=("Segoe UI", 10), rowheight=34)
-        style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
-        style.map("Treeview", background=[("selected", self._color)])
-
-        tree = ttk.Treeview(tbl_card, columns=cols,
-                             show="headings", height=min(max(len(defects), 1), 14))
-        for col, w in zip(cols, [90, 240, 260, 85, 105, 105]):
-            tree.heading(col, text=col)
-            tree.column(col, width=w, anchor="w")
-        tree.pack(fill="x", padx=20, pady=(0, 20))
-
-        for d in reversed(defects):
-            issue_id_text = d.get("cb_id") or f"#{d.get('id','?')}"
-            desc = d.get("description", d.get("title", "—"))
-            tree.insert("", "end", values=(
-                issue_id_text,
-                desc[:50] + ("…" if len(desc) > 50 else ""),
-                d.get("link", "—"),
-                d.get("priority", ""),
-                d.get("status", ""),
-                d.get("created", ""),
-            ))
 
     def _bar_card(self, parent, col, title, items, total):
         card = tk.Frame(parent, bg=SURFACE,
