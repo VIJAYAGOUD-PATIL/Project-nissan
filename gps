@@ -1,0 +1,311 @@
+"""
+NMEA Border Crossing Simulator
+Streams simulated GPS NMEA sentences over serial to a Head Unit.
+"""
+
+import tkinter as tk
+from tkinter import ttk, scrolledtext, messagebox
+import threading
+import time
+import math
+import serial
+import serial.tools.list_ports
+from datetime import datetime, timezone
+
+
+def nmea_checksum(sentence: str) -> str:
+    chk = 0
+    for c in sentence:
+        chk ^= ord(c)
+    return f"{chk:02X}"
+
+
+def decimal_to_nmea(deg: float, is_lat: bool) -> tuple[str, str]:
+    """Convert decimal degrees to NMEA ddmm.mmmmm format."""
+    hemi = ("N" if deg >= 0 else "S") if is_lat else ("E" if deg >= 0 else "W")
+    deg = abs(deg)
+    d = int(deg)
+    m = (deg - d) * 60
+    fmt = f"{d:02d}{m:09.6f}" if is_lat else f"{d:03d}{m:09.6f}"
+    return fmt, hemi
+
+
+def build_gprmc(lat: float, lon: float, speed_knots: float, heading: float, dt: datetime) -> str:
+    time_str = dt.strftime("%H%M%S.00")
+    date_str = dt.strftime("%d%m%y")
+    lat_s, lat_h = decimal_to_nmea(lat, True)
+    lon_s, lon_h = decimal_to_nmea(lon, False)
+    body = f"GPRMC,{time_str},A,{lat_s},{lat_h},{lon_s},{lon_h},{speed_knots:.2f},{heading:.2f},{date_str},,"
+    return f"${body}*{nmea_checksum(body)}\r\n"
+
+
+def build_gpgga(lat: float, lon: float, dt: datetime) -> str:
+    time_str = dt.strftime("%H%M%S.00")
+    lat_s, lat_h = decimal_to_nmea(lat, True)
+    lon_s, lon_h = decimal_to_nmea(lon, False)
+    body = f"GPGGA,{time_str},{lat_s},{lat_h},{lon_s},{lon_h},1,08,0.9,50.0,M,0.0,M,,"
+    return f"${body}*{nmea_checksum(body)}\r\n"
+
+
+def interpolate(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
+def compute_heading(lat1, lon1, lat2, lon2) -> float:
+    dlon = math.radians(lon2 - lon1)
+    lat1r = math.radians(lat1)
+    lat2r = math.radians(lat2)
+    x = math.sin(dlon) * math.cos(lat2r)
+    y = math.cos(lat1r) * math.sin(lat2r) - math.sin(lat1r) * math.cos(lat2r) * math.cos(dlon)
+    bearing = math.degrees(math.atan2(x, y))
+    return (bearing + 360) % 360
+
+
+def haversine_km(lat1, lon1, lat2, lon2) -> float:
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+class NMEASimulator(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("NMEA Border Crossing Simulator")
+        self.resizable(False, False)
+        self._running = False
+        self._thread = None
+        self._build_ui()
+        self._refresh_ports()
+
+    def _build_ui(self):
+        pad = dict(padx=12, pady=6)
+
+        # ── Header ──────────────────────────────────────────────
+        hdr = tk.Frame(self, bg="#1a1a2e")
+        hdr.pack(fill="x")
+        tk.Label(hdr, text="NMEA Border Crossing Simulator", bg="#1a1a2e",
+                 fg="white", font=("Helvetica", 14, "bold"), pady=10).pack()
+        tk.Label(hdr, text="Streams GPS NMEA sentences over serial to your Head Unit",
+                 bg="#1a1a2e", fg="#aaaacc", font=("Helvetica", 9)).pack(pady=(0, 8))
+
+        # ── Coordinates ─────────────────────────────────────────
+        coord_frame = ttk.LabelFrame(self, text="Route coordinates", padding=10)
+        coord_frame.pack(fill="x", **pad)
+
+        labels = ["Start lat (Country A):", "Start lon (Country A):",
+                  "End lat (Country B):", "End lon (Country B):"]
+        defaults = ["48.9750", "8.2200", "48.9740", "8.1900"]
+        self._coord_vars = []
+        for i, (lbl, val) in enumerate(zip(labels, defaults)):
+            tk.Label(coord_frame, text=lbl, width=22, anchor="w").grid(row=i, column=0, sticky="w", pady=2)
+            var = tk.StringVar(value=val)
+            tk.Entry(coord_frame, textvariable=var, width=18).grid(row=i, column=1, sticky="w", padx=8)
+            self._coord_vars.append(var)
+
+        # ── Settings ────────────────────────────────────────────
+        settings_frame = ttk.LabelFrame(self, text="Simulation settings", padding=10)
+        settings_frame.pack(fill="x", **pad)
+
+        tk.Label(settings_frame, text="Speed (km/h):", width=22, anchor="w").grid(row=0, column=0, sticky="w", pady=2)
+        self._speed_var = tk.StringVar(value="60")
+        tk.Entry(settings_frame, textvariable=self._speed_var, width=10).grid(row=0, column=1, sticky="w", padx=8)
+
+        tk.Label(settings_frame, text="Pre/post border (km):", width=22, anchor="w").grid(row=1, column=0, sticky="w", pady=2)
+        self._margin_var = tk.StringVar(value="2")
+        tk.Entry(settings_frame, textvariable=self._margin_var, width=10).grid(row=1, column=1, sticky="w", padx=8)
+
+        tk.Label(settings_frame, text="NMEA interval (ms):", width=22, anchor="w").grid(row=2, column=0, sticky="w", pady=2)
+        self._interval_var = tk.StringVar(value="1000")
+        tk.Entry(settings_frame, textvariable=self._interval_var, width=10).grid(row=2, column=1, sticky="w", padx=8)
+
+        tk.Label(settings_frame, text="Loop crossings:", width=22, anchor="w").grid(row=3, column=0, sticky="w", pady=2)
+        self._loop_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(settings_frame, variable=self._loop_var).grid(row=3, column=1, sticky="w", padx=8)
+
+        # ── Serial port ─────────────────────────────────────────
+        port_frame = ttk.LabelFrame(self, text="Serial port", padding=10)
+        port_frame.pack(fill="x", **pad)
+
+        tk.Label(port_frame, text="Port:", width=22, anchor="w").grid(row=0, column=0, sticky="w")
+        self._port_var = tk.StringVar()
+        self._port_combo = ttk.Combobox(port_frame, textvariable=self._port_var, width=20, state="readonly")
+        self._port_combo.grid(row=0, column=1, sticky="w", padx=8)
+        tk.Button(port_frame, text="Refresh", command=self._refresh_ports, width=8).grid(row=0, column=2, padx=4)
+
+        tk.Label(port_frame, text="Baud rate:", width=22, anchor="w").grid(row=1, column=0, sticky="w", pady=4)
+        self._baud_var = tk.StringVar(value="4800")
+        ttk.Combobox(port_frame, textvariable=self._baud_var,
+                     values=["4800", "9600", "19200", "38400", "115200"],
+                     width=20, state="readonly").grid(row=1, column=1, sticky="w", padx=8)
+
+        # ── Mode ────────────────────────────────────────────────
+        mode_frame = ttk.LabelFrame(self, text="Output mode", padding=10)
+        mode_frame.pack(fill="x", **pad)
+        self._mode_var = tk.StringVar(value="serial")
+        tk.Radiobutton(mode_frame, text="Send over serial port", variable=self._mode_var, value="serial").pack(anchor="w")
+        tk.Radiobutton(mode_frame, text="Preview only (no serial)", variable=self._mode_var, value="preview").pack(anchor="w")
+
+        # ── Controls ────────────────────────────────────────────
+        ctrl = tk.Frame(self)
+        ctrl.pack(fill="x", **pad)
+        self._start_btn = tk.Button(ctrl, text="▶  Start simulation", command=self._start,
+                                    bg="#2563eb", fg="white", font=("Helvetica", 11, "bold"),
+                                    relief="flat", padx=16, pady=6, cursor="hand2")
+        self._start_btn.pack(side="left")
+        self._stop_btn = tk.Button(ctrl, text="■  Stop", command=self._stop,
+                                   bg="#dc2626", fg="white", font=("Helvetica", 11, "bold"),
+                                   relief="flat", padx=16, pady=6, cursor="hand2", state="disabled")
+        self._stop_btn.pack(side="left", padx=8)
+
+        # ── Progress ────────────────────────────────────────────
+        prog_frame = tk.Frame(self)
+        prog_frame.pack(fill="x", padx=12)
+        self._progress = ttk.Progressbar(prog_frame, length=400, mode="determinate")
+        self._progress.pack(fill="x")
+        self._status_var = tk.StringVar(value="Ready")
+        tk.Label(prog_frame, textvariable=self._status_var, fg="#555", font=("Helvetica", 9)).pack(anchor="w", pady=2)
+
+        # ── Log ─────────────────────────────────────────────────
+        log_frame = ttk.LabelFrame(self, text="NMEA output log", padding=6)
+        log_frame.pack(fill="both", expand=True, **pad)
+        self._log = scrolledtext.ScrolledText(log_frame, height=10, font=("Courier", 9),
+                                               bg="#0f172a", fg="#4ade80", insertbackground="white",
+                                               state="disabled")
+        self._log.pack(fill="both", expand=True)
+
+    def _refresh_ports(self):
+        ports = [p.device for p in serial.tools.list_ports.comports()]
+        self._port_combo["values"] = ports if ports else ["(no ports found)"]
+        if ports:
+            self._port_var.set(ports[0])
+
+    def _log_line(self, text: str):
+        self._log.config(state="normal")
+        self._log.insert("end", text)
+        self._log.see("end")
+        self._log.config(state="disabled")
+
+    def _set_status(self, msg: str, pct: float = None):
+        self._status_var.set(msg)
+        if pct is not None:
+            self._progress["value"] = pct
+
+    def _start(self):
+        try:
+            lat_a = float(self._coord_vars[0].get())
+            lon_a = float(self._coord_vars[1].get())
+            lat_b = float(self._coord_vars[2].get())
+            lon_b = float(self._coord_vars[3].get())
+            speed_kmh = float(self._speed_var.get())
+            margin_km = float(self._margin_var.get())
+            interval_ms = int(self._interval_var.get())
+        except ValueError:
+            messagebox.showerror("Input error", "Check all numeric fields are valid.")
+            return
+
+        mode = self._mode_var.get()
+        port = self._port_var.get()
+        baud = int(self._baud_var.get())
+
+        if mode == "serial" and "(no ports" in port:
+            messagebox.showerror("No port", "No serial ports found. Switch to preview mode or connect device.")
+            return
+
+        self._running = True
+        self._start_btn.config(state="disabled")
+        self._stop_btn.config(state="normal")
+        self._log.config(state="normal")
+        self._log.delete("1.0", "end")
+        self._log.config(state="disabled")
+
+        self._thread = threading.Thread(
+            target=self._simulate,
+            args=(lat_a, lon_a, lat_b, lon_b, speed_kmh, margin_km, interval_ms, mode, port, baud),
+            daemon=True
+        )
+        self._thread.start()
+
+    def _stop(self):
+        self._running = False
+        self._start_btn.config(state="normal")
+        self._stop_btn.config(state="disabled")
+        self._set_status("Stopped", 0)
+
+    def _simulate(self, lat_a, lon_a, lat_b, lon_b, speed_kmh, margin_km, interval_ms, mode, port, baud):
+        heading = compute_heading(lat_a, lon_a, lat_b, lon_b)
+        total_km = haversine_km(lat_a, lon_a, lat_b, lon_b)
+        margin_frac = margin_km / total_km if total_km > 0 else 0
+
+        # Extend route by margin on each side
+        lat_start = interpolate(lat_a, lat_b, -margin_frac)
+        lon_start = interpolate(lon_a, lon_b, -margin_frac)
+        lat_end = interpolate(lat_a, lat_b, 1 + margin_frac)
+        lon_end = interpolate(lon_a, lon_b, 1 + margin_frac)
+
+        full_km = haversine_km(lat_start, lon_start, lat_end, lon_end)
+        speed_ms = speed_kmh / 3.6
+        speed_knots = speed_kmh / 1.852
+        step_km = speed_ms * (interval_ms / 1000) / 1000
+
+        ser = None
+        if mode == "serial":
+            try:
+                ser = serial.Serial(port, baud, timeout=1)
+                self._log_line(f"[OPEN] {port} @ {baud} baud\n")
+            except serial.SerialException as e:
+                self.after(0, lambda: messagebox.showerror("Serial error", str(e)))
+                self._stop()
+                return
+
+        loop = True
+        pass_num = 0
+        try:
+            while self._running and loop:
+                pass_num += 1
+                t = 0.0
+                self._set_status(f"Pass {pass_num} — simulating...", 0)
+
+                while self._running and t <= 1.0:
+                    lat = interpolate(lat_start, lat_end, t)
+                    lon = interpolate(lon_start, lon_end, t)
+                    dt = datetime.now(timezone.utc)
+
+                    rmc = build_gprmc(lat, lon, speed_knots, heading, dt)
+                    gga = build_gpgga(lat, lon, dt)
+
+                    dist_done = t * full_km
+                    pct = min(100, (dist_done / full_km) * 100)
+                    self.after(0, lambda p=pct, d=dist_done: self._set_status(
+                        f"Pass {pass_num} — {d:.2f} km done  |  lat {lat:.5f}  lon {lon:.5f}", p))
+
+                    self.after(0, lambda r=rmc, g=gga: self._log_line(r + g))
+
+                    if ser:
+                        ser.write(rmc.encode())
+                        ser.write(gga.encode())
+
+                    t += step_km / full_km
+                    time.sleep(interval_ms / 1000)
+
+                loop = self._loop_var.get()
+                if loop and self._running:
+                    self.after(0, lambda: self._set_status("Border reached — looping back...", 100))
+                    time.sleep(1)
+
+        finally:
+            if ser:
+                ser.close()
+                self.after(0, lambda: self._log_line(f"[CLOSE] Serial port closed\n"))
+
+        if self._running:
+            self.after(0, lambda: self._set_status("Simulation complete", 100))
+            self.after(0, lambda: self._stop_btn.config(state="disabled"))
+            self.after(0, lambda: self._start_btn.config(state="normal"))
+            self._running = False
+
+
+if __name__ == "__main__":
+    app = NMEASimulator()
+    app.mainloop()
